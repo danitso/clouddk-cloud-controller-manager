@@ -17,10 +17,9 @@ const (
 
 // Cloud implements the interface cloudprovider.Interface
 type Cloud struct {
-	clientSettings clouddk.ClientSettings
-	loadBalancers  cloudprovider.LoadBalancer
-	instances      cloudprovider.Instances
-	zones          cloudprovider.Zones
+	loadBalancers cloudprovider.LoadBalancer
+	instances     cloudprovider.Instances
+	zones         cloudprovider.Zones
 }
 
 // init registers this cloud provider
@@ -44,14 +43,15 @@ func newCloud() (cloudprovider.Interface, error) {
 		return nil, errors.New("The environment variable 'CLOUDDK_API_KEY' is empty")
 	}
 
+	clientSettings := clouddk.ClientSettings{
+		Endpoint: endpoint,
+		Key:      key,
+	}
+
 	return Cloud{
-		clientSettings: clouddk.ClientSettings{
-			Endpoint: endpoint,
-			Key:      key,
-		},
-		loadBalancers: newLoadBalancers(),
-		instances:     newInstances(),
-		zones:         newZones(),
+		loadBalancers: newLoadBalancers(&clientSettings),
+		instances:     newInstances(&clientSettings),
+		zones:         newZones(&clientSettings),
 	}, nil
 }
 
@@ -63,7 +63,7 @@ func (c Cloud) Initialize(clientBuilder cloudprovider.ControllerClientBuilder, s
 
 // LoadBalancer returns a balancer interface. Also returns true if the interface is supported, false otherwise.
 func (c Cloud) LoadBalancer() (cloudprovider.LoadBalancer, bool) {
-	return c.loadBalancers, true
+	return c.loadBalancers, false
 }
 
 // Instances returns an instances interface. Also returns true if the interface is supported, false otherwise.

@@ -5,13 +5,19 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	cloudprovider "k8s.io/cloud-provider"
+
+	"github.com/danitso/terraform-provider-clouddk/clouddk"
 )
 
-type LoadBalancers struct{}
+type LoadBalancers struct {
+	ClientSettings *clouddk.ClientSettings
+}
 
 // newLoadBalancers initializes a new LoadBalancers object
-func newLoadBalancers() cloudprovider.LoadBalancer {
-	return LoadBalancers{}
+func newLoadBalancers(cs *clouddk.ClientSettings) cloudprovider.LoadBalancer {
+	return LoadBalancers{
+		ClientSettings: cs,
+	}
 }
 
 // GetLoadBalancer returns whether the specified load balancer exists, and if so, what its status is.
