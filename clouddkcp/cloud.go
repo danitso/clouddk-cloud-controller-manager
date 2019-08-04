@@ -13,9 +13,10 @@ const (
 
 // Cloud implements the interface cloudprovider.Interface
 type Cloud struct {
-	loadBalancers cloudprovider.LoadBalancer
-	instances     cloudprovider.Instances
-	zones         cloudprovider.Zones
+	clientSettings ClientSettings
+	loadBalancers  cloudprovider.LoadBalancer
+	instances      cloudprovider.Instances
+	zones          cloudprovider.Zones
 }
 
 // init registers this cloud provider
@@ -34,8 +35,7 @@ func newCloud() (cloudprovider.Interface, error) {
 	}, nil
 }
 
-// Initialize provides the cloud with a kubernetes client builder and may spawn goroutines
-// to perform housekeeping or run custom controllers specific to the cloud provider.
+// Initialize provides the cloud with a kubernetes client builder and may spawn goroutines to perform housekeeping or run custom controllers specific to the cloud provider.
 // Any tasks started here should be cleaned up when the stop channel closes.
 func (c Cloud) Initialize(clientBuilder cloudprovider.ControllerClientBuilder, stop <-chan struct{}) {
 	fmt.Printf("Initializing cloud provider '%s'\n", ProviderName)

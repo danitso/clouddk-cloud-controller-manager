@@ -17,9 +17,6 @@ func newInstances() cloudprovider.Instances {
 }
 
 // NodeAddresses returns the addresses of the specified instance.
-// TODO(roberthbailey): This currently is only used in such a way that it
-// returns the address of the calling instance. We should do a rename to
-// make this clearer.
 func (i Instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1.NodeAddress, error) {
 	nodeAddresses := make([]v1.NodeAddress, 0)
 
@@ -27,10 +24,9 @@ func (i Instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1
 }
 
 // NodeAddressesByProviderID returns the addresses of the specified instance.
-// The instance is specified using the providerID of the node. The
-// ProviderID is a unique identifier of the node. This will not be called
-// from the node whose nodeaddresses are being queried. i.e. local metadata
-// services cannot be used in this method to obtain nodeaddresses
+// The instance is specified using the providerID of the node.
+// The ProviderID is a unique identifier of the node.
+// This will not be called from the node whose nodeaddresses are being queried. i.e. local metadata services cannot be used in this method to obtain nodeaddresses
 func (i Instances) NodeAddressesByProviderID(ctx context.Context, providerID string) ([]v1.NodeAddress, error) {
 	nodeAddresses := make([]v1.NodeAddress, 0)
 
@@ -54,8 +50,7 @@ func (i Instances) InstanceTypeByProviderID(ctx context.Context, providerID stri
 	return "", nil
 }
 
-// AddSSHKeyToAllInstances adds an SSH public key as a legal identity for all instances
-// expected format for the key is standard ssh-keygen format: <protocol> <blob>
+// AddSSHKeyToAllInstances adds an SSH public key as a legal identity for all instances expected format for the key is standard ssh-keygen format: <protocol> <blob>
 func (i Instances) AddSSHKeyToAllInstances(ctx context.Context, user string, keyData []byte) error {
 	return nil
 }
