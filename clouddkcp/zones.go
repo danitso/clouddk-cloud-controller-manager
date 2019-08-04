@@ -40,14 +40,19 @@ func (z Zones) GetZone(ctx context.Context) (cloudprovider.Zone, error) {
 // outside the kubelets.
 func (z Zones) GetZoneByProviderID(ctx context.Context, providerID string) (cloudprovider.Zone, error) {
 	zone := cloudprovider.Zone{}
-	server, serverErr := GetServerObjectByID(z.config.ClientSettings, providerID)
+
+	server := CloudServer{
+		CloudConfiguration: z.config,
+	}
+
+	serverErr := server.GetByID(providerID)
 
 	if serverErr != nil {
 		return zone, serverErr
 	}
 
-	zone.FailureDomain = server.Location.Identifier
-	zone.Region = server.Location.Identifier
+	zone.FailureDomain = server.Information.Location.Identifier
+	zone.Region = server.Information.Location.Identifier
 
 	return zone, nil
 }
@@ -57,14 +62,19 @@ func (z Zones) GetZoneByProviderID(ctx context.Context, providerID string) (clou
 // outside the kubelets.
 func (z Zones) GetZoneByNodeName(ctx context.Context, nodeName types.NodeName) (cloudprovider.Zone, error) {
 	zone := cloudprovider.Zone{}
-	server, serverErr := GetServerObjectByNodeName(z.config.ClientSettings, nodeName)
+
+	server := CloudServer{
+		CloudConfiguration: z.config,
+	}
+
+	serverErr := server.GetByHostname(string(nodeName))
 
 	if serverErr != nil {
 		return zone, serverErr
 	}
 
-	zone.FailureDomain = server.Location.Identifier
-	zone.Region = server.Location.Identifier
+	zone.FailureDomain = server.Information.Location.Identifier
+	zone.Region = server.Information.Location.Identifier
 
 	return zone, nil
 }
