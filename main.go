@@ -12,6 +12,8 @@ import (
 
 	_ "k8s.io/kubernetes/pkg/util/prometheusclientgo"
 	_ "k8s.io/kubernetes/pkg/version/prometheus"
+
+	"github.com/danitso/clouddk-cloud-controller-manager/clouddkcp"
 )
 
 func main() {
