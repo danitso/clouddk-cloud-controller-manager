@@ -3,8 +3,9 @@ package clouddkcp
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/types"
 	cloudprovider "k8s.io/cloud-provider"
+
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type Zones struct{}
