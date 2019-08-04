@@ -29,6 +29,20 @@ func newInstances(cs *clouddk.ClientSettings) cloudprovider.Instances {
 // NodeAddresses returns the addresses of the specified instance.
 func (i Instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1.NodeAddress, error) {
 	nodeAddresses := make([]v1.NodeAddress, 0)
+	server, serverErr := GetServerObjectByNodeName(i.ClientSettings, name)
+
+	if serverErr != nil {
+		return nodeAddresses, serverErr
+	}
+
+	for _, n := range server.NetworkInterfaces {
+		for _, i := range n.IPAddresses {
+			nodeAddresses = append(nodeAddresses, v1.NodeAddress{
+				Type:    "ExternalIP",
+				Address: i.Address,
+			})
+		}
+	}
 
 	return nodeAddresses, nil
 }
