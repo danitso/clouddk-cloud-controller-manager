@@ -26,48 +26,6 @@ func newInstances(cs *clouddk.ClientSettings) cloudprovider.Instances {
 	}
 }
 
-// GetServerObjectByID retrieves the ServerBody object for a specific node.
-func (i Instances) GetServerObjectByID(providerID string) (clouddk.ServerBody, error) {
-	res, resErr := clouddk.DoClientRequest(i.ClientSettings, "GET", fmt.Sprintf("cloudservers/%s", providerID), new(bytes.Buffer), []int{200}, 1, 1)
-
-	if resErr != nil {
-		return clouddk.ServerBody{}, resErr
-	}
-
-	server := clouddk.ServerBody{}
-	decodeErr := json.NewDecoder(res.Body).Decode(&server)
-
-	if decodeErr != nil {
-		return clouddk.ServerBody{}, decodeErr
-	}
-
-	return server, nil
-}
-
-// GetServerObjectByNodeName retrieves the ServerBody object for a specific node.
-func (i Instances) GetServerObjectByNodeName(nodeName types.NodeName) (clouddk.ServerBody, error) {
-	res, resErr := clouddk.DoClientRequest(i.ClientSettings, "GET", fmt.Sprintf("cloudservers?hostname=%s", nodeName), new(bytes.Buffer), []int{200}, 1, 1)
-
-	if resErr != nil {
-		return clouddk.ServerBody{}, resErr
-	}
-
-	servers := make(clouddk.ServerListBody, 0)
-	decodeErr := json.NewDecoder(res.Body).Decode(&servers)
-
-	if decodeErr != nil {
-		return clouddk.ServerBody{}, decodeErr
-	}
-
-	for _, v := range servers {
-		if v.Hostname == string(nodeName) {
-			return v, nil
-		}
-	}
-
-	return clouddk.ServerBody{}, fmt.Errorf("Failed to retrieve the server object for noode '%s'", nodeName)
-}
-
 // NodeAddresses returns the addresses of the specified instance.
 func (i Instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1.NodeAddress, error) {
 	nodeAddresses := make([]v1.NodeAddress, 0)
@@ -81,7 +39,7 @@ func (i Instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1
 // This will not be called from the node whose nodeaddresses are being queried. i.e. local metadata services cannot be used in this method to obtain nodeaddresses
 func (i Instances) NodeAddressesByProviderID(ctx context.Context, providerID string) ([]v1.NodeAddress, error) {
 	nodeAddresses := make([]v1.NodeAddress, 0)
-	server, serverErr := i.GetServerObjectByID(providerID)
+	server, serverErr := GetServerObjectByID(i.ClientSettings, providerID)
 
 	if serverErr != nil {
 		return nodeAddresses, serverErr
@@ -103,21 +61,21 @@ func (i Instances) NodeAddressesByProviderID(ctx context.Context, providerID str
 // Note that if the instance does not exist, we must return ("", cloudprovider.InstanceNotFound)
 // cloudprovider.InstanceNotFound should NOT be returned for instances that exist but are stopped/sleeping
 func (i Instances) InstanceID(ctx context.Context, nodeName types.NodeName) (string, error) {
-	server, serverErr := i.GetServerObjectByNodeName(nodeName)
+	server, serverErr := GetServerObjectByNodeName(i.ClientSettings, nodeName)
 
 	return server.Identifier, serverErr
 }
 
 // InstanceType returns the type of the specified instance.
 func (i Instances) InstanceType(ctx context.Context, name types.NodeName) (string, error) {
-	server, serverErr := i.GetServerObjectByNodeName(name)
+	server, serverErr := GetServerObjectByNodeName(i.ClientSettings, name)
 
 	return server.Package.Identifier, serverErr
 }
 
 // InstanceTypeByProviderID returns the type of the specified instance.
 func (i Instances) InstanceTypeByProviderID(ctx context.Context, providerID string) (string, error) {
-	server, serverErr := i.GetServerObjectByID(providerID)
+	server, serverErr := GetServerObjectByID(i.ClientSettings, providerID)
 
 	return server.Package.Identifier, serverErr
 }
@@ -139,14 +97,14 @@ func (i Instances) CurrentNodeName(ctx context.Context, hostname string) (types.
 // If false is returned with no error, the instance will be immediately deleted by the cloud controller manager.
 // This method should still return true for instances that exist but are stopped/sleeping.
 func (i Instances) InstanceExistsByProviderID(ctx context.Context, providerID string) (bool, error) {
-	_, serverErr := i.GetServerObjectByID(providerID)
+	_, serverErr := GetServerObjectByID(i.ClientSettings, providerID)
 
 	return (serverErr == nil), nil
 }
 
 // InstanceShutdownByProviderID returns true if the instance is shutdown in cloudprovider
 func (i Instances) InstanceShutdownByProviderID(ctx context.Context, providerID string) (bool, error) {
-	server, serverErr := i.GetServerObjectByID(providerID)
+	server, serverErr := GetServerObjectByID(i.ClientSettings, providerID)
 
 	if serverErr != nil {
 		return false, serverErr

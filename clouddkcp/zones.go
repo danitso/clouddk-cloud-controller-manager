@@ -1,10 +1,7 @@
 package clouddkcp
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	"os"
 
 	cloudprovider "k8s.io/cloud-provider"
@@ -43,17 +40,10 @@ func (z Zones) GetZone(ctx context.Context) (cloudprovider.Zone, error) {
 // outside the kubelets.
 func (z Zones) GetZoneByProviderID(ctx context.Context, providerID string) (cloudprovider.Zone, error) {
 	zone := cloudprovider.Zone{}
-	res, resErr := clouddk.DoClientRequest(z.ClientSettings, "GET", fmt.Sprintf("cloudservers/%s", providerID), new(bytes.Buffer), []int{200}, 1, 1)
+	server, serverErr := GetServerObjectByID(z.ClientSettings, providerID)
 
-	if resErr != nil {
-		return zone, resErr
-	}
-
-	server := clouddk.ServerBody{}
-	decodeErr := json.NewDecoder(res.Body).Decode(&server)
-
-	if decodeErr != nil {
-		return zone, decodeErr
+	if serverErr != nil {
+		return zone, serverErr
 	}
 
 	zone.FailureDomain = server.Location.Identifier
@@ -67,31 +57,14 @@ func (z Zones) GetZoneByProviderID(ctx context.Context, providerID string) (clou
 // outside the kubelets.
 func (z Zones) GetZoneByNodeName(ctx context.Context, nodeName types.NodeName) (cloudprovider.Zone, error) {
 	zone := cloudprovider.Zone{}
-	res, resErr := clouddk.DoClientRequest(z.ClientSettings, "GET", fmt.Sprintf("cloudservers?hostname=%s", nodeName), new(bytes.Buffer), []int{200}, 1, 1)
+	server, serverErr := GetServerObjectByNodeName(z.ClientSettings, nodeName)
 
-	if resErr != nil {
-		return zone, resErr
+	if serverErr != nil {
+		return zone, serverErr
 	}
 
-	servers := make(clouddk.ServerListBody, 0)
-	decodeErr := json.NewDecoder(res.Body).Decode(&servers)
-
-	if decodeErr != nil {
-		return zone, decodeErr
-	}
-
-	for _, v := range servers {
-		if v.Hostname == string(nodeName) {
-			zone.FailureDomain = v.Location.Identifier
-			zone.Region = v.Location.Identifier
-
-			break
-		}
-	}
-
-	if zone.Region == "" {
-		return zone, fmt.Errorf("Failed to determine the zone for node '%s'", nodeName)
-	}
+	zone.FailureDomain = server.Location.Identifier
+	zone.Region = server.Location.Identifier
 
 	return zone, nil
 }
