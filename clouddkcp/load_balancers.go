@@ -29,7 +29,7 @@ const (
 
 	// annoLoadBalancerHealthCheckInternal is the annotation used to specify the number of seconds between between two consecutive health checks.
 	// The value must be between 3 and 300. Defaults to 3.
-	annoLoadBalancerHealthCheckInternal = "kubernetes.cloud.dk/load-balancer-health-check-interval"
+	annoLoadBalancerHealthCheckInterval = "kubernetes.cloud.dk/load-balancer-health-check-interval"
 
 	// annoLoadBalancerHealthCheckPath is the annotation used to specify the health check path.
 	// Defaults to '/'.
@@ -277,6 +277,15 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 		algorithm = "roundrobin"
 	}
 
+	switch algorithm {
+	case "leastconn":
+	case "roundrobin":
+	case "source":
+		break
+	default:
+		return fmt.Errorf("Invalid algorithm '%s'", algorithm)
+	}
+
 	var connectionLimitErr error
 
 	connectionLimit := 1000
@@ -286,8 +295,42 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 		connectionLimit, connectionLimitErr = strconv.Atoi(connectionLimitStr)
 
 		if connectionLimitErr != nil {
-			return fmt.Errorf("Invalid connection limit '%s' (%s)", connectionLimitErr, connectionLimitErr.Error())
+			return fmt.Errorf("Invalid connection limit '%s'", connectionLimitStr)
 		}
+	}
+
+	if connectionLimit < 1 {
+		return fmt.Errorf("Invalid connection limit '%s'", connectionLimitStr)
+	}
+
+	healthCheckInterval := service.Annotations[annoLoadBalancerHealthCheckInterval]
+
+	if healthCheckInterval == "" {
+		healthCheckInterval = "3"
+	}
+
+	healthCheckPath := service.Annotations[annoLoadBalancerHealthCheckPath]
+
+	if healthCheckPath == "" {
+		healthCheckPath = "/"
+	}
+
+	healthCheckThresholdHealthy := service.Annotations[annoLoadBalancerHealthCheckThresholdHealthy]
+
+	if healthCheckThresholdHealthy == "" {
+		healthCheckThresholdHealthy = "5"
+	}
+
+	healthCheckThresholdUnhealthy := service.Annotations[annoLoadBalancerHealthCheckThresholdUnhealthy]
+
+	if healthCheckThresholdUnhealthy == "" {
+		healthCheckThresholdUnhealthy = "3"
+	}
+
+	healthCheckTimeout := service.Annotations[annoLoadBalancerHealthCheckTimeout]
+
+	if healthCheckTimeout == "" {
+		healthCheckTimeout = "5"
 	}
 
 	protocol := service.Annotations[annoLoadBalancerProtocol]
@@ -296,50 +339,123 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 		protocol = "tcp"
 	}
 
-	// Generate a new HAProxy configuration.
-	processorCount := getProcessorCountByConnectionLimit(connectionLimit)
-	configFileContents := fmt.Sprintf(
-		`
-global
-    log                         /dev/log local0 info alert
-    log                         /dev/log local1 notice alert
+	healthCheckProtocol := service.Annotations[annoLoadBalancerHealthCheckProtocol]
 
-	chroot                      /var/lib/haproxy
-
-	stats                       socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
-    stats                       timeout 30s
-
-	user                        haproxy
-    group                       haproxy
-
-	ca-base                     /etc/ssl/certs
-    crt-base                    /etc/ssl/private
-
-	ssl-default-bind-ciphers    ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS
-    ssl-default-bind-options    no-sslv3
-
-	nbproc                      %d
-    nbthread                    2
-		`,
-		processorCount,
-	)
-
-	for i := 1; i <= processorCount; i++ {
-		configFileContents = configFileContents + fmt.Sprintf("\n    cpu-map                     %d %d\n", i, i)
+	if healthCheckProtocol == "" {
+		healthCheckProtocol = protocol
 	}
 
-	configFileContents = configFileContents + fmt.Sprintf(
+	// Generate a new HAProxy configuration file.
+	processorCount := getProcessorCountByConnectionLimit(connectionLimit)
+	configFileContents := strings.TrimSpace(fmt.Sprintf(
+		`
+global
+	log							/dev/log local0 info alert
+	log							/dev/log local1 notice alert
+
+	chroot						/var/lib/haproxy
+
+	stats						socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+	stats						timeout 30s
+
+	user						haproxy
+	group						haproxy
+
+	ca-base						/etc/ssl/certs
+	crt-base					/etc/ssl/private
+
+	ssl-default-bind-ciphers	ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS
+	ssl-default-bind-options	no-sslv3
+
+	nbproc						%d
+	nbthread					2
+		`,
+		processorCount,
+	))
+
+	configFileContents = configFileContents + "\n\n"
+
+	for i := 1; i <= processorCount; i++ {
+		configFileContents = configFileContents + fmt.Sprintf("\tcpu-map                     %d %d\n", i, i)
+	}
+
+	configFileContents = configFileContents + "\n"
+	configFileContents = configFileContents + strings.TrimSpace(fmt.Sprintf(
 		`
 defaults
-    balance						%s
-    log                         global
-    maxconn                     %d
-    mode                        %s
+	balance	%s
+	log		global
+	maxconn	%d
+	mode	%s
 		`,
 		algorithm,
 		int(connectionLimit/processorCount),
 		protocol,
-	)
+	))
+
+	configFileContents = configFileContents + "\n\n"
+
+	for _, port := range service.Spec.Ports {
+		configFileContents = configFileContents + strings.TrimSpace(fmt.Sprintf(
+			`
+listen p%d
+	bind	0.0.0.0:%d
+	timeout	check %s
+			`,
+			port.Port,
+			port.Port,
+			healthCheckTimeout,
+		))
+
+		if healthCheckProtocol == "http" {
+			configFileContents = configFileContents + fmt.Sprintf("\toption	httpchk GET %s HTTP/1.0\n", healthCheckPath)
+		} else if healthCheckProtocol == "https" {
+			configFileContents = configFileContents + "\toption ssl-hello-chk\n"
+		} else {
+			configFileContents = configFileContents + "\toption tcp-check\n"
+		}
+
+		configFileContents = configFileContents + "\n\n"
+
+		for _, node := range nodes {
+			for _, address := range node.Status.Addresses {
+				if address.Type != "ExternalIP" {
+					continue
+				}
+
+				configFileContents = configFileContents + fmt.Sprintf(
+					"\tserver	%s:%d %s:%d maxconn %d check inter %s fall %s rise %s\n",
+					address.Address,
+					port.NodePort,
+					address.Address,
+					port.NodePort,
+					int(connectionLimit/processorCount),
+					healthCheckInterval,
+					healthCheckThresholdUnhealthy,
+					healthCheckThresholdHealthy,
+				)
+			}
+		}
+	}
+
+	// Upload the new configuration file to the server and reload the HAProxy service.
+	sshClient, sshClientErr := server.SSH()
+
+	if sshClientErr != nil {
+		return sshClientErr
+	}
+
+	_, sshSessionErr := sshClient.NewSession()
+
+	if sshSessionErr != nil {
+		sshClient.Close()
+
+		return sshSessionErr
+	}
+
+	sshClient.Close()
+
+	// ... Work in progress ...
 
 	return nil
 }
