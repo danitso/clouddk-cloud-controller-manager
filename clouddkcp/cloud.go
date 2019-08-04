@@ -1,8 +1,10 @@
 package clouddkcp
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	cloudprovider "k8s.io/cloud-provider"
 
@@ -30,7 +32,23 @@ func init() {
 
 // newCloud initializes a new Cloud object
 func newCloud() (cloudprovider.Interface, error) {
+	endpoint := os.Getenv("CLOUDDK_API_ENDPOINT")
+
+	if endpoint == "" {
+		endpoint = "https://api.cloud.dk/v1"
+	}
+
+	key := os.Getenv("CLOUDDK_API_KEY")
+
+	if key == "" {
+		return nil, errors.New("The environment variable 'CLOUDDK_API_KEY' is empty")
+	}
+
 	return Cloud{
+		clientSettings: clouddk.ClientSettings{
+			Endpoint: endpoint,
+			Key:      key,
+		},
 		loadBalancers: newLoadBalancers(),
 		instances:     newInstances(),
 		zones:         newZones(),
