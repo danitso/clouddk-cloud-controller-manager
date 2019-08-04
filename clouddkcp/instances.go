@@ -159,7 +159,11 @@ func (i Instances) InstanceShutdownByProviderID(ctx context.Context, providerID 
 	}
 
 	logsList := clouddk.LogsListBody{}
-	json.NewDecoder(res.Body).Decode(&logsList)
+	decodeErr := json.NewDecoder(res.Body).Decode(&logsList)
+
+	if decodeErr != nil {
+		return false, decodeErr
+	}
 
 	for _, v := range logsList {
 		if v.Status == "pending" || v.Status == "running" {
