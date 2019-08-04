@@ -6,18 +6,18 @@ import (
 
 	cloudprovider "k8s.io/cloud-provider"
 
-	"github.com/danitso/terraform-provider-clouddk/clouddk"
 	"k8s.io/apimachinery/pkg/types"
 )
 
+// Zones implements the interface cloudprovider.Zones
 type Zones struct {
-	ClientSettings *clouddk.ClientSettings
+	config *CloudConfiguration
 }
 
 // newZones initializes a new Zones object
-func newZones(cs *clouddk.ClientSettings) cloudprovider.Zones {
+func newZones(c *CloudConfiguration) cloudprovider.Zones {
 	return Zones{
-		ClientSettings: cs,
+		config: c,
 	}
 }
 
@@ -40,7 +40,7 @@ func (z Zones) GetZone(ctx context.Context) (cloudprovider.Zone, error) {
 // outside the kubelets.
 func (z Zones) GetZoneByProviderID(ctx context.Context, providerID string) (cloudprovider.Zone, error) {
 	zone := cloudprovider.Zone{}
-	server, serverErr := GetServerObjectByID(z.ClientSettings, providerID)
+	server, serverErr := GetServerObjectByID(z.config.ClientSettings, providerID)
 
 	if serverErr != nil {
 		return zone, serverErr
@@ -57,7 +57,7 @@ func (z Zones) GetZoneByProviderID(ctx context.Context, providerID string) (clou
 // outside the kubelets.
 func (z Zones) GetZoneByNodeName(ctx context.Context, nodeName types.NodeName) (cloudprovider.Zone, error) {
 	zone := cloudprovider.Zone{}
-	server, serverErr := GetServerObjectByNodeName(z.ClientSettings, nodeName)
+	server, serverErr := GetServerObjectByNodeName(z.config.ClientSettings, nodeName)
 
 	if serverErr != nil {
 		return zone, serverErr

@@ -1,7 +1,6 @@
 package clouddkcp
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +12,11 @@ import (
 
 const (
 	ProviderName = "clouddk"
+
+	envAPIEndpoint   = "CLOUDDK_API_ENDPOINT"
+	envAPIKey        = "CLOUDDK_API_KEY"
+	envSSHPrivateKey = "CLOUDDK_SSH_PRIVATE_KEY"
+	envSSHPublicKey  = "CLOUDDK_SSH_PUBLIC_KEY"
 )
 
 // Cloud implements the interface cloudprovider.Interface
@@ -20,6 +24,13 @@ type Cloud struct {
 	loadBalancers cloudprovider.LoadBalancer
 	instances     cloudprovider.Instances
 	zones         cloudprovider.Zones
+}
+
+// CloudConfiguration stores the cloud configuration
+type CloudConfiguration struct {
+	ClientSettings *clouddk.ClientSettings
+	PrivateKey     string
+	PublicKey      string
 }
 
 // init registers this cloud provider
@@ -31,27 +42,35 @@ func init() {
 
 // newCloud initializes a new Cloud object
 func newCloud() (cloudprovider.Interface, error) {
-	endpoint := os.Getenv("CLOUDDK_API_ENDPOINT")
+	config := CloudConfiguration{}
+	config.ClientSettings.Endpoint = os.Getenv(envAPIEndpoint)
 
-	if endpoint == "" {
-		endpoint = "https://api.cloud.dk/v1"
+	if config.ClientSettings.Endpoint == "" {
+		config.ClientSettings.Endpoint = "https://api.cloud.dk/v1"
 	}
 
-	key := os.Getenv("CLOUDDK_API_KEY")
+	config.ClientSettings.Key = os.Getenv(envAPIKey)
 
-	if key == "" {
-		return nil, errors.New("The environment variable 'CLOUDDK_API_KEY' is empty")
+	if config.ClientSettings.Key == "" {
+		return nil, fmt.Errorf("The environment variable '%s' is empty", envAPIKey)
 	}
 
-	clientSettings := clouddk.ClientSettings{
-		Endpoint: endpoint,
-		Key:      key,
+	config.PrivateKey = os.Getenv(envSSHPrivateKey)
+
+	if config.PrivateKey == "" {
+		return nil, fmt.Errorf("The environment variable '%s' is empty", envSSHPrivateKey)
+	}
+
+	config.PublicKey = os.Getenv(envSSHPublicKey)
+
+	if config.PrivateKey == "" {
+		return nil, fmt.Errorf("The environment variable '%s' is empty", envSSHPublicKey)
 	}
 
 	return Cloud{
-		loadBalancers: newLoadBalancers(&clientSettings),
-		instances:     newInstances(&clientSettings),
-		zones:         newZones(&clientSettings),
+		loadBalancers: newLoadBalancers(&config),
+		instances:     newInstances(&config),
+		zones:         newZones(&config),
 	}, nil
 }
 

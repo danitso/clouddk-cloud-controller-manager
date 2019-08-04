@@ -15,21 +15,22 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+// Instances implements the interface cloudprovider.Instances
 type Instances struct {
-	ClientSettings *clouddk.ClientSettings
+	config *CloudConfiguration
 }
 
 // newInstances initializes a new Instances object
-func newInstances(cs *clouddk.ClientSettings) cloudprovider.Instances {
+func newInstances(c *CloudConfiguration) cloudprovider.Instances {
 	return Instances{
-		ClientSettings: cs,
+		config: c,
 	}
 }
 
 // NodeAddresses returns the addresses of the specified instance.
 func (i Instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1.NodeAddress, error) {
 	nodeAddresses := make([]v1.NodeAddress, 0)
-	server, serverErr := GetServerObjectByNodeName(i.ClientSettings, name)
+	server, serverErr := GetServerObjectByNodeName(i.config.ClientSettings, name)
 
 	if serverErr != nil {
 		return nodeAddresses, serverErr
@@ -53,7 +54,7 @@ func (i Instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1
 // This will not be called from the node whose nodeaddresses are being queried. i.e. local metadata services cannot be used in this method to obtain nodeaddresses
 func (i Instances) NodeAddressesByProviderID(ctx context.Context, providerID string) ([]v1.NodeAddress, error) {
 	nodeAddresses := make([]v1.NodeAddress, 0)
-	server, serverErr := GetServerObjectByID(i.ClientSettings, providerID)
+	server, serverErr := GetServerObjectByID(i.config.ClientSettings, providerID)
 
 	if serverErr != nil {
 		return nodeAddresses, serverErr
@@ -75,21 +76,21 @@ func (i Instances) NodeAddressesByProviderID(ctx context.Context, providerID str
 // Note that if the instance does not exist, we must return ("", cloudprovider.InstanceNotFound)
 // cloudprovider.InstanceNotFound should NOT be returned for instances that exist but are stopped/sleeping
 func (i Instances) InstanceID(ctx context.Context, nodeName types.NodeName) (string, error) {
-	server, serverErr := GetServerObjectByNodeName(i.ClientSettings, nodeName)
+	server, serverErr := GetServerObjectByNodeName(i.config.ClientSettings, nodeName)
 
 	return server.Identifier, serverErr
 }
 
 // InstanceType returns the type of the specified instance.
 func (i Instances) InstanceType(ctx context.Context, name types.NodeName) (string, error) {
-	server, serverErr := GetServerObjectByNodeName(i.ClientSettings, name)
+	server, serverErr := GetServerObjectByNodeName(i.config.ClientSettings, name)
 
 	return server.Package.Identifier, serverErr
 }
 
 // InstanceTypeByProviderID returns the type of the specified instance.
 func (i Instances) InstanceTypeByProviderID(ctx context.Context, providerID string) (string, error) {
-	server, serverErr := GetServerObjectByID(i.ClientSettings, providerID)
+	server, serverErr := GetServerObjectByID(i.config.ClientSettings, providerID)
 
 	return server.Package.Identifier, serverErr
 }
@@ -111,20 +112,20 @@ func (i Instances) CurrentNodeName(ctx context.Context, hostname string) (types.
 // If false is returned with no error, the instance will be immediately deleted by the cloud controller manager.
 // This method should still return true for instances that exist but are stopped/sleeping.
 func (i Instances) InstanceExistsByProviderID(ctx context.Context, providerID string) (bool, error) {
-	_, serverErr := GetServerObjectByID(i.ClientSettings, providerID)
+	_, serverErr := GetServerObjectByID(i.config.ClientSettings, providerID)
 
 	return (serverErr == nil), nil
 }
 
 // InstanceShutdownByProviderID returns true if the instance is shutdown in cloudprovider
 func (i Instances) InstanceShutdownByProviderID(ctx context.Context, providerID string) (bool, error) {
-	server, serverErr := GetServerObjectByID(i.ClientSettings, providerID)
+	server, serverErr := GetServerObjectByID(i.config.ClientSettings, providerID)
 
 	if serverErr != nil {
 		return false, serverErr
 	}
 
-	res, resErr := clouddk.DoClientRequest(i.ClientSettings, "GET", fmt.Sprintf("cloudservers/%s/logs", server.Identifier), new(bytes.Buffer), []int{200}, 1, 1)
+	res, resErr := clouddk.DoClientRequest(i.config.ClientSettings, "GET", fmt.Sprintf("cloudservers/%s/logs", server.Identifier), new(bytes.Buffer), []int{200}, 1, 1)
 
 	if resErr != nil {
 		return false, resErr
