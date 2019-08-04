@@ -5,6 +5,8 @@ import (
 	"io"
 
 	cloudprovider "k8s.io/cloud-provider"
+
+	"github.com/danitso/terraform-provider-clouddk/clouddk"
 )
 
 const (
@@ -13,7 +15,7 @@ const (
 
 // Cloud implements the interface cloudprovider.Interface
 type Cloud struct {
-	clientSettings ClientSettings
+	clientSettings clouddk.ClientSettings
 	loadBalancers  cloudprovider.LoadBalancer
 	instances      cloudprovider.Instances
 	zones          cloudprovider.Zones

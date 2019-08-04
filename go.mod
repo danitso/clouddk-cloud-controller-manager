@@ -26,6 +26,7 @@ replace (
 )
 
 require (
+	github.com/danitso/terraform-provider-clouddk v0.0.0-20190804145242-fe93efdacfff
 	github.com/spf13/pflag v1.0.3
 	k8s.io/api v0.0.0
 	k8s.io/apimachinery v0.0.0
