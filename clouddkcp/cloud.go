@@ -11,36 +11,44 @@ import (
 )
 
 const (
+	// ProviderName specifies the name of the cloud controller manager defined in this file.
 	ProviderName = "clouddk"
 
-	envAPIEndpoint   = "CLOUDDK_API_ENDPOINT"
-	envAPIKey        = "CLOUDDK_API_KEY"
+	// envAPIEndpoint specifies the name of the environment variable containing the Cloud.dk API endpoint.
+	envAPIEndpoint = "CLOUDDK_API_ENDPOINT"
+
+	// envAPIKey specifies the name of the environment variable containing the Cloud.dk API key.
+	envAPIKey = "CLOUDDK_API_KEY"
+
+	// envSSHPrivateKey specifies the name of the environment variable containing the Base 64 encoded private key for SSH connections.
 	envSSHPrivateKey = "CLOUDDK_SSH_PRIVATE_KEY"
-	envSSHPublicKey  = "CLOUDDK_SSH_PUBLIC_KEY"
+
+	// envSSHPublicKey specifies the name of the environment variable containing the Base 64 encoded public key for SSH connections.
+	envSSHPublicKey = "CLOUDDK_SSH_PUBLIC_KEY"
 )
 
-// Cloud implements the interface cloudprovider.Interface
+// Cloud implements the interface cloudprovider.Interface.
 type Cloud struct {
 	loadBalancers cloudprovider.LoadBalancer
 	instances     cloudprovider.Instances
 	zones         cloudprovider.Zones
 }
 
-// CloudConfiguration stores the cloud configuration
+// CloudConfiguration stores the cloud configuration.
 type CloudConfiguration struct {
 	ClientSettings *clouddk.ClientSettings
 	PrivateKey     string
 	PublicKey      string
 }
 
-// init registers this cloud provider
+// init registers this cloud provider.
 func init() {
 	cloudprovider.RegisterCloudProvider(ProviderName, func(io.Reader) (cloudprovider.Interface, error) {
 		return newCloud()
 	})
 }
 
-// newCloud initializes a new Cloud object
+// newCloud initializes a new Cloud object.
 func newCloud() (cloudprovider.Interface, error) {
 	config := CloudConfiguration{}
 	config.ClientSettings.Endpoint = os.Getenv(envAPIEndpoint)
@@ -110,7 +118,7 @@ func (c Cloud) ProviderName() string {
 	return ProviderName
 }
 
-// HasClusterID returns true if a ClusterID is required and set
+// HasClusterID returns true if a ClusterID is required and set.
 func (c Cloud) HasClusterID() bool {
 	return false
 }

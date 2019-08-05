@@ -15,12 +15,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// Instances implements the interface cloudprovider.Instances
+// Instances implements the interface cloudprovider.Instances.
 type Instances struct {
 	config *CloudConfiguration
 }
 
-// newInstances initializes a new Instances object
+// newInstances initializes a new Instances object.
 func newInstances(c *CloudConfiguration) cloudprovider.Instances {
 	return Instances{
 		config: c,
@@ -56,7 +56,7 @@ func (i Instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1
 // NodeAddressesByProviderID returns the addresses of the specified instance.
 // The instance is specified using the providerID of the node.
 // The ProviderID is a unique identifier of the node.
-// This will not be called from the node whose nodeaddresses are being queried. i.e. local metadata services cannot be used in this method to obtain nodeaddresses
+// This will not be called from the node whose nodeaddresses are being queried. i.e. local metadata services cannot be used in this method to obtain nodeaddresses.
 func (i Instances) NodeAddressesByProviderID(ctx context.Context, providerID string) ([]v1.NodeAddress, error) {
 	nodeAddresses := make([]v1.NodeAddress, 0)
 
@@ -83,8 +83,8 @@ func (i Instances) NodeAddressesByProviderID(ctx context.Context, providerID str
 }
 
 // InstanceID returns the cloud provider ID of the node with the specified NodeName.
-// Note that if the instance does not exist, we must return ("", cloudprovider.InstanceNotFound)
-// cloudprovider.InstanceNotFound should NOT be returned for instances that exist but are stopped/sleeping
+// Note that if the instance does not exist, we must return ("", cloudprovider.InstanceNotFound).
+// cloudprovider.InstanceNotFound should NOT be returned for instances that exist but are stopped/sleeping.
 func (i Instances) InstanceID(ctx context.Context, nodeName types.NodeName) (string, error) {
 	server := CloudServer{
 		CloudConfiguration: i.config,
@@ -117,13 +117,13 @@ func (i Instances) InstanceTypeByProviderID(ctx context.Context, providerID stri
 	return server.Information.Package.Identifier, serverErr
 }
 
-// AddSSHKeyToAllInstances adds an SSH public key as a legal identity for all instances expected format for the key is standard ssh-keygen format: <protocol> <blob>
+// AddSSHKeyToAllInstances adds an SSH public key as a legal identity for all instances expected format for the key is standard ssh-keygen format: <protocol> <blob>.
 func (i Instances) AddSSHKeyToAllInstances(ctx context.Context, user string, keyData []byte) error {
 	return errors.New("Not implemented")
 }
 
-// CurrentNodeName returns the name of the node we are currently running on
-// On most clouds (e.g. GCE) this is the hostname, so we provide the hostname
+// CurrentNodeName returns the name of the node we are currently running on.
+// On most clouds (e.g. GCE) this is the hostname, so we provide the hostname.
 func (i Instances) CurrentNodeName(ctx context.Context, hostname string) (types.NodeName, error) {
 	hostname, hostnameErr := os.Hostname()
 
@@ -143,7 +143,7 @@ func (i Instances) InstanceExistsByProviderID(ctx context.Context, providerID st
 	return (serverErr == nil), nil
 }
 
-// InstanceShutdownByProviderID returns true if the instance is shutdown in cloudprovider
+// InstanceShutdownByProviderID returns true if the instance is shutdown in cloudprovider.
 func (i Instances) InstanceShutdownByProviderID(ctx context.Context, providerID string) (bool, error) {
 	server := CloudServer{
 		CloudConfiguration: i.config,

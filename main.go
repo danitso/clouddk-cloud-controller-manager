@@ -16,6 +16,7 @@ import (
 	"github.com/danitso/clouddk-cloud-controller-manager/clouddkcp"
 )
 
+// main initializes the cloud provider.
 func main() {
 	rand.Seed(time.Now().UnixNano())
 

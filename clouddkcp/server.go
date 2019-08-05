@@ -13,13 +13,13 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// CloudServer manages a Cloud.dk server
+// CloudServer manages a Cloud.dk server.
 type CloudServer struct {
 	CloudConfiguration *CloudConfiguration
 	Information        clouddk.ServerBody
 }
 
-// Create creates a new Cloud.dk server
+// Create creates a new Cloud.dk server.
 func (s CloudServer) Create(locationID string, packageID string, hostname string) error {
 	rootPassword := s.GetRandomPassword(64)
 
@@ -119,7 +119,7 @@ func (s CloudServer) Create(locationID string, packageID string, hostname string
 	return nil
 }
 
-// Destroy destroys a Cloud.dk server
+// Destroy destroys a Cloud.dk server.
 func (s CloudServer) Destroy() error {
 	if s.Information.Identifier == "" {
 		return errors.New("The server has not been created")
@@ -144,7 +144,7 @@ func (s CloudServer) Destroy() error {
 	return nil
 }
 
-// GetByHostname initializes a CloudServer based on a hostname
+// GetByHostname initializes a CloudServer based on a hostname.
 func (s CloudServer) GetByHostname(hostname string) error {
 	if s.Information.Identifier != "" {
 		return errors.New("The server has already been created")
@@ -182,7 +182,7 @@ func (s CloudServer) GetByHostname(hostname string) error {
 	return fmt.Errorf("Failed to retrieve the server object for hostname '%s'", hostname)
 }
 
-// GetByID initializes a CloudServer based on an identifier
+// GetByID initializes a CloudServer based on an identifier.
 func (s CloudServer) GetByID(id string) error {
 	if s.Information.Identifier != "" {
 		return errors.New("The server has already been created")
@@ -224,7 +224,7 @@ func (s CloudServer) GetRandomPassword(length int) string {
 	return b.String()
 }
 
-// SSH establishes a new SSH connection to a Cloud.dk server
+// SSH establishes a new SSH connection to a Cloud.dk server.
 func (s CloudServer) SSH() (*ssh.Client, error) {
 	sshPrivateKeyBuffer := bytes.NewBufferString(s.CloudConfiguration.PrivateKey)
 	sshPrivateKeySigner, sshPrivateKeyErr := ssh.ParsePrivateKey(sshPrivateKeyBuffer.Bytes())

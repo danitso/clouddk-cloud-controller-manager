@@ -22,7 +22,7 @@ const (
 	// Defaults to 30.
 	annoLoadBalancerClientTimeout = "kubernetes.cloud.dk/load-balancer-client-timeout"
 
-	// annoLoadBalancerAlgorithm is the annotation specifying the connection limit.
+	// annoLoadBalancerConnectionLimit is the annotation specifying the connection limit.
 	// The value must be between 1 and 20000.
 	// Defaults to 1000.
 	annoLoadBalancerConnectionLimit = "kubernetes.cloud.dk/load-balancer-connection-limit"
@@ -63,12 +63,12 @@ const (
 	hostnameFormat = "k8s-load-balancer-%s-%s"
 )
 
-// LoadBalancers implements the interface cloudprovider.LoadBalancer
+// LoadBalancers implements the interface cloudprovider.LoadBalancer.
 type LoadBalancers struct {
 	config *CloudConfiguration
 }
 
-// createLoadBalancer creates a new load balancer
+// createLoadBalancer creates a new load balancer.
 func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Service) (CloudServer, error) {
 	server := CloudServer{
 		CloudConfiguration: c,
@@ -129,7 +129,7 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 	return server, nil
 }
 
-// getLoadBalancerNameByService retrieves the default load balancer name for a service
+// getLoadBalancerNameByService retrieves the default load balancer name for a service.
 func getLoadBalancerNameByService(service *v1.Service) string {
 	name := strings.Replace(string(service.UID), "-", "", -1)
 
@@ -140,7 +140,7 @@ func getLoadBalancerNameByService(service *v1.Service) string {
 	return name
 }
 
-// getPackageIDByConnectionLimit retrieves the package id based on a connection limit
+// getPackageIDByConnectionLimit retrieves the package id based on a connection limit.
 func getPackageIDByConnectionLimit(limit int) string {
 	if limit <= 1000 {
 		return "89833c1dfa7010"
@@ -151,7 +151,7 @@ func getPackageIDByConnectionLimit(limit int) string {
 	}
 }
 
-// getProcessorCountByConnectionLimit retrieves the package id based on a connection limit
+// getProcessorCountByConnectionLimit retrieves the package id based on a connection limit.
 func getProcessorCountByConnectionLimit(limit int) int {
 	if limit <= 1000 {
 		return 1
@@ -162,14 +162,14 @@ func getProcessorCountByConnectionLimit(limit int) int {
 	}
 }
 
-// newLoadBalancers initializes a new LoadBalancers object
+// newLoadBalancers initializes a new LoadBalancers object.
 func newLoadBalancers(c *CloudConfiguration) cloudprovider.LoadBalancer {
 	return LoadBalancers{
 		config: c,
 	}
 }
 
-// parseBoolAnnotation parses an annotation containing a boolean
+// parseBoolAnnotation parses an annotation containing a boolean.
 func parseBoolAnnotation(value string, defaultValue bool) (bool, error) {
 	if value == "" {
 		return defaultValue, nil
@@ -178,7 +178,7 @@ func parseBoolAnnotation(value string, defaultValue bool) (bool, error) {
 	return (value == "true"), nil
 }
 
-// parseIntAnnotation parses an annotation containing an integer
+// parseIntAnnotation parses an annotation containing an integer.
 func parseIntAnnotation(value string, defaultValue int, minValue int, maxValue int) (int, error) {
 	if value == "" {
 		return defaultValue, nil
@@ -201,7 +201,7 @@ func parseIntAnnotation(value string, defaultValue int, minValue int, maxValue i
 	return i, nil
 }
 
-// parseStringAnnotation parses an annotation containing a string
+// parseStringAnnotation parses an annotation containing a string.
 func parseStringAnnotation(value string, defaultValue string, supportedValues []string) (string, error) {
 	if value == "" {
 		return defaultValue, nil
@@ -259,7 +259,7 @@ func (l LoadBalancers) GetLoadBalancerName(ctx context.Context, clusterName stri
 	return getLoadBalancerNameByService(service)
 }
 
-// EnsureLoadBalancer creates a new load balancer 'name', or updates the existing one. Returns the status of the balancer
+// EnsureLoadBalancer creates a new load balancer 'name', or updates the existing one. Returns the status of the balancer.
 // Implementations must treat the *v1.Service and *v1.Node parameters as read-only and not modify them.
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
 func (l LoadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) (*v1.LoadBalancerStatus, error) {
@@ -296,7 +296,7 @@ func (l LoadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName strin
 
 // UpdateLoadBalancer updates hosts under the specified load balancer.
 // Implementations must treat the *v1.Service and *v1.Node parameters as read-only and not modify them.
-// Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
+// Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager.
 func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) error {
 	hostname := fmt.Sprintf(hostnameFormat, sanitizeClusterName(clusterName), getLoadBalancerNameByService(service))
 
@@ -487,7 +487,7 @@ listen %d
 // EnsureLoadBalancerDeleted deletes the specified load balancer if it exists, returning nil if the load balancer specified either didn't exist or was successfully deleted.
 // This construction is useful because many cloud providers' load balancers have multiple underlying components, meaning a Get could say that the LB doesn't exist even if some part of it is still laying around.
 // Implementations must treat the *v1.Service parameter as read-only and not modify it.
-// Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
+// Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager.
 func (l LoadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterName string, service *v1.Service) error {
 	hostname := fmt.Sprintf(hostnameFormat, sanitizeClusterName(clusterName), getLoadBalancerNameByService(service))
 
