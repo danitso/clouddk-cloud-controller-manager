@@ -108,7 +108,7 @@ func (c Cloud) Initialize(clientBuilder cloudprovider.ControllerClientBuilder, s
 
 // LoadBalancer returns a balancer interface. Also returns true if the interface is supported, false otherwise.
 func (c Cloud) LoadBalancer() (cloudprovider.LoadBalancer, bool) {
-	return c.loadBalancers, false
+	return c.loadBalancers, true
 }
 
 // Instances returns an instances interface. Also returns true if the interface is supported, false otherwise.

@@ -46,10 +46,10 @@ Follow these simple steps in order to install the controller:
       namespace: kube-system
     type: Opaque
     data:
-      CLOUDDK_API_ENDPOINT: https://api.cloud.dk/v1
-      CLOUDDK_API_KEY: <the API key retrieved in step 2>
-      CLOUDDK_SSH_PRIVATE_KEY: <the private SSH key generated in step 3>
-      CLOUDDK_SSH_PUBLIC_KEY: <the public SSH key generated in step 3>
+      CLOUDDK_API_ENDPOINT: 'https://api.cloud.dk/v1'
+      CLOUDDK_API_KEY: 'the API key retrieved in step 2'
+      CLOUDDK_SSH_PRIVATE_KEY: 'the private SSH key generated in step 3'
+      CLOUDDK_SSH_PUBLIC_KEY: 'the public SSH key generated in step 3'
     ```
 
 1. Create the secret in `config.yaml` using `kubectl`
