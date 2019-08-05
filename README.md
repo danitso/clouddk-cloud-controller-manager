@@ -21,7 +21,7 @@ controllerManagerExtraArgs:
 ```
 
 ## Installation
-Follow these simple steps in order to deploy the controller:
+Follow these simple steps in order to install the controller:
 
 1. Ensure that `kubectl` is configured to reach your cluster
 
