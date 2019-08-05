@@ -25,8 +25,6 @@ Follow these simple steps in order to install the controller:
 
 1. Ensure that `kubectl` is configured to reach your cluster
 
-    _You may have to either manually create or edit `$HOME/.kube/config`_
-
 1. Retrieve the API key from [https://my.cloud.dk/account/api-key](https://my.cloud.dk/account/api-key)
 
 1. Create a new SSH key pair
