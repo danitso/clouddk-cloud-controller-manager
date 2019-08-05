@@ -74,41 +74,33 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 		CloudConfiguration: c,
 	}
 
-	connectionLimit := service.Annotations[annoLoadBalancerConnectionLimit]
-	packageID := ""
+	connectionLimit, err := parseIntAnnotation(service.Annotations[annoLoadBalancerConnectionLimit], 1000, 1, 20000)
 
-	if connectionLimit != "" {
-		limit, err := strconv.Atoi(connectionLimit)
-
-		if err != nil {
-			return server, fmt.Errorf("Invalid connection limit '%s' (%s)", connectionLimit, err.Error())
-		}
-
-		packageID = getPackageIDByConnectionLimit(limit)
-	} else {
-		packageID = getPackageIDByConnectionLimit(1000)
+	if err != nil {
+		return server, err
 	}
 
-	serverCreateErr := server.Create("dk1", packageID, hostname)
+	packageID := getPackageIDByConnectionLimit(connectionLimit)
+	err = server.Create("dk1", packageID, hostname)
 
-	if serverCreateErr != nil {
-		return server, serverCreateErr
+	if err != nil {
+		return server, err
 	}
 
 	// Install an LTS version of HAProxy on the server.
-	sshClient, sshClientErr := server.SSH()
+	sshClient, err := server.SSH()
 
-	if sshClientErr != nil {
-		return server, sshClientErr
+	if err != nil {
+		return server, err
 	}
 
-	sshSession, sshSessionErr := sshClient.NewSession()
+	sshSession, err := sshClient.NewSession()
 
-	if sshSessionErr != nil {
+	if err != nil {
 		sshClient.Close()
 		server.Destroy()
 
-		return server, sshSessionErr
+		return server, err
 	}
 
 	_, sshOuputErr := sshSession.CombinedOutput(
