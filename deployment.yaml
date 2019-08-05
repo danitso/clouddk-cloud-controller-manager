@@ -45,6 +45,9 @@ spec:
         - --allocate-node-cidrs=true
         - --configure-cloud-routes=true
         - --cluster-cidr=172.17.0.0/16
+        envFrom:
+        - secretRef:
+            name: clouddk-cloud-controller-manager-config
       tolerations:
       - key: node.cloudprovider.kubernetes.io/uninitialized
         value: "true"

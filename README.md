@@ -38,13 +38,13 @@ Follow these simple steps in order to install the controller:
         && echo "CLOUDDK_SSH_PUBLIC_KEY: $(cat /tmp/clouddk_ssh_key.pub | base64 | tr -d '\n')"
     ```
 
-1. Create a new file called `clouddk-config.yaml` with the following contents:
+1. Create a new file called `config.yaml` with the following contents:
 
     ```yaml
     apiVersion: v1
     kind: Secret
     metadata:
-      name: clouddk-config
+      name: clouddk-cloud-controller-manager-config
     type: Opaque
     data:
       CLOUDDK_API_ENDPOINT: https://api.cloud.dk/v1
@@ -53,10 +53,10 @@ Follow these simple steps in order to install the controller:
       CLOUDDK_SSH_PUBLIC_KEY: <the public SSH key generated in step 3>
     ```
 
-1. Create the secret in `clouddk-config.yaml` using `kubectl`
+1. Create the secret in `config.yaml` using `kubectl`
 
     ```bash
-    kubectl apply -f ./clouddk-config.yaml
+    kubectl apply -f ./config.yaml
     ```
 
 1. Deploy the controller using `kubectl`
