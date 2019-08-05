@@ -37,8 +37,7 @@ spec:
       containers:
       - name: clouddk-cloud-controller-manager
         image: docker.io/danitso/clouddk-cloud-controller-manager:latest
-        command:
-        - /usr/local/bin/cloud-controller-manager
+        args:
         - --cloud-provider=clouddk
         - --leader-elect=true
         - --use-service-account-credentials
