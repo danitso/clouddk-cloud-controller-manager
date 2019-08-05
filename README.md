@@ -32,8 +32,8 @@ Follow these simple steps in order to install the controller:
     ```bash
     rm -f /tmp/clouddk_ssh_key* \
         && ssh-keygen -b 4096 -t rsa -f /tmp/clouddk_ssh_key -q -N "" \
-        && echo "CLOUDDK_SSH_PRIVATE_KEY: $(cat /tmp/clouddk_ssh_key | base64 | tr -d '\n')" \
-        && echo "CLOUDDK_SSH_PUBLIC_KEY: $(cat /tmp/clouddk_ssh_key.pub | base64 | tr -d '\n')"
+        && echo "CLOUDDK_SSH_PRIVATE_KEY: '$(cat /tmp/clouddk_ssh_key | base64 | tr -d '\n')'" \
+        && echo "CLOUDDK_SSH_PUBLIC_KEY: '$(cat /tmp/clouddk_ssh_key.pub | base64 | tr -d '\n')'"
     ```
 
 1. Create a new file called `config.yaml` with the following contents:
