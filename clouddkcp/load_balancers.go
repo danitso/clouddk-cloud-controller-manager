@@ -16,6 +16,10 @@ const (
 	// Options are leastconn, roundrobin and source. Defaults to roundrobin.
 	annoLoadBalancerAlgorithm = "kubernetes.cloud.dk/load-balancer-algorithm"
 
+	// annoLoadBalancerClientTimeout is the annotation used to specify the number of seconds the Load Balancer will allow a client to idle for.
+	// Defaults to 60.
+	annoLoadBalancerClientTimeout = "kubernetes.cloud.dk/load-balancer-client-timeout"
+
 	// annoLoadBalancerAlgorithm is the annotation specifying the connection limit.
 	annoLoadBalancerConnectionLimit = "kubernetes.cloud.dk/load-balancer-connection-limit"
 
@@ -23,21 +27,9 @@ const (
 	// Defaults to false.
 	annoLoadBalancerEnableProxyProtocol = "kubernetes.cloud.dk/load-balancer-enable-proxy-protocol"
 
-	// annoLoadBalancerEnableHTTPSRedirection is the annotation specifying whether or not HTTP traffic should be redirected to HTTPS.
-	// Defaults to false
-	annoLoadBalancerEnableHTTPSRedirection = "kubernetes.cloud.dk/load-balancer-enable-https-redirection"
-
 	// annoLoadBalancerHealthCheckInternal is the annotation used to specify the number of seconds between between two consecutive health checks.
 	// The value must be between 3 and 300. Defaults to 3.
 	annoLoadBalancerHealthCheckInterval = "kubernetes.cloud.dk/load-balancer-health-check-interval"
-
-	// annoLoadBalancerHealthCheckPath is the annotation used to specify the health check path.
-	// Defaults to '/'.
-	annoLoadBalancerHealthCheckPath = "kubernetes.cloud.dk/load-balancer-health-check-path"
-
-	// annoLoadBalancerHealthCheckProtocol is the annotation used to specify the health check protocol.
-	// Defaults to the protocol used in 'kubernetes.cloud.dk/load-balancer-protocol'.
-	annoLoadBalancerHealthCheckProtocol = "kubernetes.cloud.dk/load-balancer-health-check-protocol"
 
 	// annoLoadBalancerHealthCheckThresholdHealthy is the annotation used to specify the number of times a health check must pass for a backend to be marked "healthy" for the given service and be re-added to the pool.
 	// The value must be between 2 and 10. Defaults to 5.
@@ -54,33 +46,9 @@ const (
 	// annoLoadBalancerID is the annotation specifying the load balancer ID used to enable fast retrievals of load balancers from the API.
 	annoLoadBalancerID = "kubernetes.cloud.dk/load-balancer-id"
 
-	// annoLoadBalancerProtocol is the annotation used to specify the default protocol for load balancers.
-	// For ports specified in annoLoadBalancerTLSPorts, this protocol is overwritten to https.
-	// Options are tcp, http and https. Defaults to tcp.
-	annoLoadBalancerProtocol = "kubernetes.cloud.dk/load-balancer-protocol"
-
-	// annoLoadBalancerTLSPassthrough is the annotation used to specify whether the load balancer should pass encrypted data to backend servers.
-	// This is optional and defaults to false.
-	annoLoadBalancerTLSPassthrough = "kubernetes.cloud.dk/load-balancer-tls-passthrough"
-
-	// annoLoadBalancerTLSPorts is the annotation used to specify which ports of the load balancer should use the HTTPS protocol.
-	// This is a comma separated list of ports (e.g., 443,6443,7443).
-	annoLoadBalancerTLSPorts = "kubernetes.cloud.dk/load-balancer-tls-ports"
-
-	// annoLoadBalancerTLSSecret is the annotation used to specify the name of the secret which contains the SSL certificate and key.
-	annoLoadBalancerTLSSecret = "kubernetes.cloud.dk/load-balancer-tls-secret"
-
-	// annoLoadBalancerStickySessionsCookieName is the annotation specifying what cookie name to use for sticky sessions.
-	// This annotation is required, if annoLoadBalancerStickySessionsType is set to cookies.
-	annoLoadBalancerStickySessionsCookieName = "kubernetes.cloud.dk/load-balancer-sticky-sessions-cookie-name"
-
-	// annoLoadBalancerStickySessionsTTL is the annotation specifying the TTL of the cookie used for sticky sessions.
-	// This annotation is required, if annoLoadBalancerStickySessionsType is set to cookies.
-	annoLoadBalancerStickySessionsTTL = "kubernetes.cloud.dk/load-balancer-sticky-sessions-ttl"
-
-	// annoLoadBalancerStickySessionsType is the annotation specifying which sticky session type to use.
-	// Options are none and cookies. Defaults to none.
-	annoLoadBalancerStickySessionsType = "kubernetes.cloud.dk/load-balancer-sticky-sessions-type"
+	// annoLoadBalancerServerTimeout is the annotation used to specify the number of seconds the Load Balancer will allow a server to idle for.
+	// Defaults to 60.
+	annoLoadBalancerServerTimeout = "kubernetes.cloud.dk/load-balancer-server-timeout"
 
 	// hostnameFormat specifies the format for load balancer hostnames.
 	hostnameFormat = "k8s-load-balancer-%s-%s"
@@ -286,6 +254,12 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 		return fmt.Errorf("Invalid algorithm '%s'", algorithm)
 	}
 
+	clientTimeout := service.Annotations[annoLoadBalancerClientTimeout]
+
+	if clientTimeout == "" {
+		clientTimeout = "60"
+	}
+
 	var connectionLimitErr error
 
 	connectionLimit := 1000
@@ -303,16 +277,16 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 		return fmt.Errorf("Invalid connection limit '%s'", connectionLimitStr)
 	}
 
+	enableProxyProtocol := service.Annotations[annoLoadBalancerEnableProxyProtocol]
+
+	if enableProxyProtocol == "" {
+		enableProxyProtocol = "false"
+	}
+
 	healthCheckInterval := service.Annotations[annoLoadBalancerHealthCheckInterval]
 
 	if healthCheckInterval == "" {
 		healthCheckInterval = "3"
-	}
-
-	healthCheckPath := service.Annotations[annoLoadBalancerHealthCheckPath]
-
-	if healthCheckPath == "" {
-		healthCheckPath = "/"
 	}
 
 	healthCheckThresholdHealthy := service.Annotations[annoLoadBalancerHealthCheckThresholdHealthy]
@@ -333,16 +307,10 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 		healthCheckTimeout = "5"
 	}
 
-	protocol := service.Annotations[annoLoadBalancerProtocol]
+	serverTimeout := service.Annotations[annoLoadBalancerServerTimeout]
 
-	if protocol == "" {
-		protocol = "tcp"
-	}
-
-	healthCheckProtocol := service.Annotations[annoLoadBalancerHealthCheckProtocol]
-
-	if healthCheckProtocol == "" {
-		healthCheckProtocol = protocol
+	if serverTimeout == "" {
+		serverTimeout = "60"
 	}
 
 	// Generate a new HAProxy configuration file.
@@ -386,35 +354,40 @@ defaults
 	balance %s
 	log global
 	maxconn %d
-	mode %s
+	mode tcp
+
+	timeout check %ss
+	timeout client %ss
+	timeout connect 5s
+	timeout server %ss
 		`,
 		algorithm,
 		int(connectionLimit/processorCount),
-		protocol,
+		healthCheckTimeout,
+		clientTimeout,
+		serverTimeout,
 	))
 
 	configFileContents = configFileContents + "\n\n"
+	serverLineFormat := "\tserver %s:%d %s:%d maxconn %d check inter %s fall %s rise %s"
+
+	if enableProxyProtocol == "true" {
+		serverLineFormat = serverLineFormat + " send-proxy"
+	}
+
+	serverLineFormat = serverLineFormat + "\n"
 
 	for _, port := range service.Spec.Ports {
 		configFileContents = configFileContents + strings.TrimSpace(fmt.Sprintf(
 			`
 listen p%d
 	bind 0.0.0.0:%d
-	timeout check %s
 			`,
 			port.Port,
 			port.Port,
-			healthCheckTimeout,
 		))
 
-		if healthCheckProtocol == "http" {
-			configFileContents = configFileContents + fmt.Sprintf("\toption httpchk GET %s HTTP/1.0\n", healthCheckPath)
-		} else if healthCheckProtocol == "https" {
-			configFileContents = configFileContents + "\toption ssl-hello-chk\n"
-		} else {
-			configFileContents = configFileContents + "\toption tcp-check\n"
-		}
-
+		configFileContents = configFileContents + "\toption tcp-check\n"
 		configFileContents = configFileContents + "\n\n"
 
 		for _, node := range nodes {
@@ -424,7 +397,7 @@ listen p%d
 				}
 
 				configFileContents = configFileContents + fmt.Sprintf(
-					"\tserver %s:%d %s:%d maxconn %d check inter %s fall %s rise %s\n",
+					serverLineFormat,
 					address.Address,
 					port.NodePort,
 					address.Address,
