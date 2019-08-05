@@ -380,7 +380,7 @@ defaults
 	for _, port := range service.Spec.Ports {
 		configFileContents = configFileContents + strings.TrimSpace(fmt.Sprintf(
 			`
-listen p%d
+listen %d
 	bind 0.0.0.0:%d
 			`,
 			port.Port,
