@@ -241,7 +241,7 @@ func (l LoadBalancers) GetLoadBalancer(ctx context.Context, clusterName string, 
 	serverErr := server.GetByHostname(hostname)
 
 	if serverErr != nil {
-		return &v1.LoadBalancerStatus{}, false, nil
+		return nil, false, nil
 	}
 
 	return &v1.LoadBalancerStatus{
