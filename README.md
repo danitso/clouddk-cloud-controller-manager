@@ -45,6 +45,7 @@ Follow these simple steps in order to install the controller:
     kind: Secret
     metadata:
       name: clouddk-cloud-controller-manager-config
+      namespace: kube-system
     type: Opaque
     data:
       CLOUDDK_API_ENDPOINT: https://api.cloud.dk/v1
