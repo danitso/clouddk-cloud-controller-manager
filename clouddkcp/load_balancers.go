@@ -17,7 +17,7 @@ const (
 	annoLoadBalancerAlgorithm = "kubernetes.cloud.dk/load-balancer-algorithm"
 
 	// annoLoadBalancerClientTimeout is the annotation used to specify the number of seconds the Load Balancer will allow a client to idle for.
-	// Defaults to 60.
+	// Defaults to 30.
 	annoLoadBalancerClientTimeout = "kubernetes.cloud.dk/load-balancer-client-timeout"
 
 	// annoLoadBalancerAlgorithm is the annotation specifying the connection limit.
@@ -162,6 +162,49 @@ func newLoadBalancers(c *CloudConfiguration) cloudprovider.LoadBalancer {
 	}
 }
 
+// parseBoolAnnotation parses an annotation containing a boolean
+func parseBoolAnnotation(value string, defaultValue bool) (bool, error) {
+	if value == "" {
+		return defaultValue, nil
+	}
+
+	return (value == "true"), nil
+}
+
+// parseIntAnnotation parses an annotation containing an integer
+func parseIntAnnotation(value string, defaultValue int, minValue int) (int, error) {
+	if value == "" {
+		return defaultValue, nil
+	}
+
+	i, err := strconv.Atoi(value)
+
+	if err != nil {
+		return i, err
+	}
+
+	if i < minValue {
+		return i, fmt.Errorf("The value must be greater than %d (value: %d)", minValue, i)
+	}
+
+	return i, nil
+}
+
+// parseStringAnnotation parses an annotation containing a string
+func parseStringAnnotation(value string, defaultValue string, supportedValues []string) (string, error) {
+	if value == "" {
+		return defaultValue, nil
+	}
+
+	for _, s := range supportedValues {
+		if value == s {
+			return s, nil
+		}
+	}
+
+	return value, fmt.Errorf("Unsupported value '%s'", value)
+}
+
 // sanitizeClusterName sanitizes a cluster name for use in hostnames.
 func sanitizeClusterName(clusterName string) string {
 	re := regexp.MustCompile(`[^a-z0-9-]`)
@@ -239,78 +282,57 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	}
 
 	// Retrieve the configuration values stored as annotations.
-	algorithm := service.Annotations[annoLoadBalancerAlgorithm]
+	algorithm, err := parseStringAnnotation(
+		service.Annotations[annoLoadBalancerAlgorithm],
+		"roundrobin",
+		[]string{"leastconn", "roundrobin", "source"},
+	)
 
-	if algorithm == "" {
-		algorithm = "roundrobin"
+	if err != nil {
+		return err
 	}
 
-	switch algorithm {
-	case "leastconn":
-	case "roundrobin":
-	case "source":
-		break
-	default:
-		return fmt.Errorf("Invalid algorithm '%s'", algorithm)
+	clientTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerClientTimeout], 30, 1)
+
+	if err != nil {
+		return err
 	}
 
-	clientTimeout := service.Annotations[annoLoadBalancerClientTimeout]
+	connectionLimit, err := parseIntAnnotation(service.Annotations[annoLoadBalancerConnectionLimit], 1000, 1)
 
-	if clientTimeout == "" {
-		clientTimeout = "60"
+	if err != nil {
+		return err
 	}
 
-	var connectionLimitErr error
+	enableProxyProtocol, _ := parseBoolAnnotation(service.Annotations[annoLoadBalancerEnableProxyProtocol], false)
+	healthCheckInterval, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckInterval], 3, 1)
 
-	connectionLimit := 1000
-	connectionLimitStr := service.Annotations[annoLoadBalancerConnectionLimit]
-
-	if connectionLimitStr != "" {
-		connectionLimit, connectionLimitErr = strconv.Atoi(connectionLimitStr)
-
-		if connectionLimitErr != nil {
-			return fmt.Errorf("Invalid connection limit '%s'", connectionLimitStr)
-		}
+	if err != nil {
+		return err
 	}
 
-	if connectionLimit < 1 {
-		return fmt.Errorf("Invalid connection limit '%s'", connectionLimitStr)
+	healthCheckThresholdHealthy, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckThresholdHealthy], 5, 1)
+
+	if err != nil {
+		return err
 	}
 
-	enableProxyProtocol := service.Annotations[annoLoadBalancerEnableProxyProtocol]
+	healthCheckThresholdUnhealthy, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckThresholdUnhealthy], 3, 1)
 
-	if enableProxyProtocol == "" {
-		enableProxyProtocol = "false"
+	if err != nil {
+		return err
 	}
 
-	healthCheckInterval := service.Annotations[annoLoadBalancerHealthCheckInterval]
+	healthCheckTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckTimeout], 5, 1)
 
-	if healthCheckInterval == "" {
-		healthCheckInterval = "3"
+	if err != nil {
+		return err
 	}
 
-	healthCheckThresholdHealthy := service.Annotations[annoLoadBalancerHealthCheckThresholdHealthy]
+	serverTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerServerTimeout], 60, 1)
 
-	if healthCheckThresholdHealthy == "" {
-		healthCheckThresholdHealthy = "5"
-	}
-
-	healthCheckThresholdUnhealthy := service.Annotations[annoLoadBalancerHealthCheckThresholdUnhealthy]
-
-	if healthCheckThresholdUnhealthy == "" {
-		healthCheckThresholdUnhealthy = "3"
-	}
-
-	healthCheckTimeout := service.Annotations[annoLoadBalancerHealthCheckTimeout]
-
-	if healthCheckTimeout == "" {
-		healthCheckTimeout = "5"
-	}
-
-	serverTimeout := service.Annotations[annoLoadBalancerServerTimeout]
-
-	if serverTimeout == "" {
-		serverTimeout = "60"
+	if err != nil {
+		return err
 	}
 
 	// Generate a new HAProxy configuration file.
@@ -356,10 +378,10 @@ defaults
 	maxconn %d
 	mode tcp
 
-	timeout check %ss
-	timeout client %ss
+	timeout check %ds
+	timeout client %ds
 	timeout connect 5s
-	timeout server %ss
+	timeout server %ds
 		`,
 		algorithm,
 		int(connectionLimit/processorCount),
@@ -369,9 +391,9 @@ defaults
 	))
 
 	configFileContents = configFileContents + "\n\n"
-	serverLineFormat := "\tserver %s:%d %s:%d maxconn %d check inter %s fall %s rise %s"
+	serverLineFormat := "\tserver %s:%d %s:%d maxconn %d check inter %d fall %d rise %d"
 
-	if enableProxyProtocol == "true" {
+	if enableProxyProtocol {
 		serverLineFormat = serverLineFormat + " send-proxy"
 	}
 
