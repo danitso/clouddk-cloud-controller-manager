@@ -1,6 +1,8 @@
 package clouddkcp
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -65,13 +67,29 @@ func newCloud() (cloudprovider.Interface, error) {
 
 	config.PrivateKey = os.Getenv(envSSHPrivateKey)
 
-	if config.PrivateKey == "" {
+	if config.PrivateKey != "" {
+		key, err := base64.StdEncoding.DecodeString(config.PrivateKey)
+
+		if err != nil {
+			return nil, err
+		}
+
+		config.PrivateKey = bytes.NewBuffer(key).String()
+	} else {
 		return nil, fmt.Errorf("The environment variable '%s' is empty", envSSHPrivateKey)
 	}
 
 	config.PublicKey = os.Getenv(envSSHPublicKey)
 
-	if config.PrivateKey == "" {
+	if config.PublicKey != "" {
+		key, err := base64.StdEncoding.DecodeString(config.PublicKey)
+
+		if err != nil {
+			return nil, err
+		}
+
+		config.PublicKey = bytes.NewBuffer(key).String()
+	} else {
 		return nil, fmt.Errorf("The environment variable '%s' is empty", envSSHPublicKey)
 	}
 
