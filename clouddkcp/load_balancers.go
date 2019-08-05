@@ -116,7 +116,13 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 			"apt-get -qq update && " +
 			"apt-get -qq install -y software-properties-common && " +
 			"add-apt-repository -y ppa:vbernat/haproxy-2.0 && " +
-			"apt-get -qq install -y haproxy=2.0.\\*",
+			"apt-get -qq install -y haproxy=2.0.\\* && " +
+			"mkdir -p /etc/systemd/system/haproxy.service.d && " +
+			"echo '[Service]' > /etc/systemd/system/haproxy.service.d/override.conf && " +
+			"echo 'LimitNOFILE=1048576' >> /etc/systemd/system/haproxy.service.d/override.conf && " +
+			"chmod a+r /etc/systemd/system/haproxy.service.d/override.conf && " +
+			"systemctl daemon-reload && " +
+			"systemctl restart haproxy",
 	)
 
 	if sshOuputErr != nil {
