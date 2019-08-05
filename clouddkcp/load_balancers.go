@@ -232,7 +232,25 @@ func sanitizeClusterName(clusterName string) string {
 // Implementations must treat the *v1.Service parameter as read-only and not modify it.
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
 func (l LoadBalancers) GetLoadBalancer(ctx context.Context, clusterName string, service *v1.Service) (status *v1.LoadBalancerStatus, exists bool, err error) {
-	return status, false, nil
+	hostname := fmt.Sprintf(hostnameFormat, sanitizeClusterName(clusterName), getLoadBalancerNameByService(service))
+
+	server := CloudServer{
+		CloudConfiguration: l.config,
+	}
+
+	serverErr := server.GetByHostname(hostname)
+
+	if serverErr != nil {
+		return &v1.LoadBalancerStatus{}, false, nil
+	}
+
+	return &v1.LoadBalancerStatus{
+		Ingress: []v1.LoadBalancerIngress{
+			{
+				IP: server.Information.NetworkInterfaces[0].IPAddresses[0].Address,
+			},
+		},
+	}, true, nil
 }
 
 // GetLoadBalancerName returns the name of the load balancer.
