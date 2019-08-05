@@ -21,6 +21,10 @@ type CloudServer struct {
 
 // Create creates a new Cloud.dk server.
 func (s CloudServer) Create(locationID string, packageID string, hostname string) error {
+	if s.Information.Identifier != "" {
+		return errors.New("The server has already been initialized")
+	}
+
 	rootPassword := s.GetRandomPassword(64)
 
 	body := clouddk.ServerCreateBody{
@@ -122,7 +126,7 @@ func (s CloudServer) Create(locationID string, packageID string, hostname string
 // Destroy destroys a Cloud.dk server.
 func (s CloudServer) Destroy() error {
 	if s.Information.Identifier == "" {
-		return errors.New("The server has not been created")
+		return errors.New("The server has not been initialized")
 	}
 
 	_, err := clouddk.DoClientRequest(
@@ -144,73 +148,6 @@ func (s CloudServer) Destroy() error {
 	return nil
 }
 
-// GetByHostname initializes a CloudServer based on a hostname.
-func (s CloudServer) GetByHostname(hostname string) error {
-	if s.Information.Identifier != "" {
-		return errors.New("The server has already been created")
-	}
-
-	res, resErr := clouddk.DoClientRequest(
-		s.CloudConfiguration.ClientSettings,
-		"GET",
-		fmt.Sprintf("cloudservers?hostname=%s", hostname),
-		new(bytes.Buffer),
-		[]int{200},
-		1,
-		1,
-	)
-
-	if resErr != nil {
-		return resErr
-	}
-
-	servers := make(clouddk.ServerListBody, 0)
-	decodeErr := json.NewDecoder(res.Body).Decode(&servers)
-
-	if decodeErr != nil {
-		return decodeErr
-	}
-
-	for _, v := range servers {
-		if v.Hostname == hostname {
-			s.Information = v
-
-			return nil
-		}
-	}
-
-	return fmt.Errorf("Failed to retrieve the server object for hostname '%s'", hostname)
-}
-
-// GetByID initializes a CloudServer based on an identifier.
-func (s CloudServer) GetByID(id string) error {
-	if s.Information.Identifier != "" {
-		return errors.New("The server has already been created")
-	}
-
-	res, resErr := clouddk.DoClientRequest(
-		s.CloudConfiguration.ClientSettings,
-		"GET",
-		fmt.Sprintf("cloudservers/%s", id),
-		new(bytes.Buffer),
-		[]int{200},
-		1,
-		1,
-	)
-
-	if resErr != nil {
-		return resErr
-	}
-
-	decodeErr := json.NewDecoder(res.Body).Decode(&s.Information)
-
-	if decodeErr != nil {
-		return decodeErr
-	}
-
-	return nil
-}
-
 // GetRandomPassword generates a random password of a fixed length.
 func (s CloudServer) GetRandomPassword(length int) string {
 	var b strings.Builder
@@ -224,8 +161,79 @@ func (s CloudServer) GetRandomPassword(length int) string {
 	return b.String()
 }
 
+// InitializeByHostname initializes a CloudServer based on a hostname.
+func (s CloudServer) InitializeByHostname(hostname string) (notFound bool, e error) {
+	if s.Information.Identifier != "" {
+		return false, errors.New("The server has already been initialized")
+	}
+
+	res, resErr := clouddk.DoClientRequest(
+		s.CloudConfiguration.ClientSettings,
+		"GET",
+		fmt.Sprintf("cloudservers?hostname=%s", hostname),
+		new(bytes.Buffer),
+		[]int{200},
+		1,
+		1,
+	)
+
+	if resErr != nil {
+		return false, resErr
+	}
+
+	servers := make(clouddk.ServerListBody, 0)
+	decodeErr := json.NewDecoder(res.Body).Decode(&servers)
+
+	if decodeErr != nil {
+		return false, decodeErr
+	}
+
+	for _, v := range servers {
+		if v.Hostname == hostname {
+			s.Information = v
+
+			return false, nil
+		}
+	}
+
+	return true, fmt.Errorf("Failed to retrieve the server object for hostname '%s'", hostname)
+}
+
+// InitializeByID initializes a CloudServer based on an identifier.
+func (s CloudServer) InitializeByID(id string) (notFound bool, e error) {
+	if s.Information.Identifier != "" {
+		return true, errors.New("The server has already been initialized")
+	}
+
+	res, resErr := clouddk.DoClientRequest(
+		s.CloudConfiguration.ClientSettings,
+		"GET",
+		fmt.Sprintf("cloudservers/%s", id),
+		new(bytes.Buffer),
+		[]int{200},
+		1,
+		1,
+	)
+
+	if resErr != nil {
+		return (res.StatusCode == 404), resErr
+	}
+
+	decodeErr := json.NewDecoder(res.Body).Decode(&s.Information)
+
+	if decodeErr != nil {
+		return false, decodeErr
+	}
+
+	return false, nil
+}
+
 // SSH establishes a new SSH connection to a Cloud.dk server.
 func (s CloudServer) SSH() (*ssh.Client, error) {
+	if s.Information.Identifier == "" {
+		return nil, errors.New("The server has not been initialized")
+	}
+
 	sshPrivateKeyBuffer := bytes.NewBufferString(s.CloudConfiguration.PrivateKey)
 	sshPrivateKeySigner, sshPrivateKeyErr := ssh.ParsePrivateKey(sshPrivateKeyBuffer.Bytes())
 

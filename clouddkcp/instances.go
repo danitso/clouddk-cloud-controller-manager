@@ -35,7 +35,7 @@ func (i Instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1
 		CloudConfiguration: i.config,
 	}
 
-	serverErr := server.GetByHostname(string(name))
+	_, serverErr := server.InitializeByHostname(string(name))
 
 	if serverErr != nil {
 		return nodeAddresses, serverErr
@@ -64,7 +64,7 @@ func (i Instances) NodeAddressesByProviderID(ctx context.Context, providerID str
 		CloudConfiguration: i.config,
 	}
 
-	serverErr := server.GetByID(providerID)
+	_, serverErr := server.InitializeByID(providerID)
 
 	if serverErr != nil {
 		return nodeAddresses, serverErr
@@ -90,7 +90,7 @@ func (i Instances) InstanceID(ctx context.Context, nodeName types.NodeName) (str
 		CloudConfiguration: i.config,
 	}
 
-	serverErr := server.GetByHostname(string(nodeName))
+	_, serverErr := server.InitializeByHostname(string(nodeName))
 
 	return server.Information.Identifier, serverErr
 }
@@ -101,7 +101,7 @@ func (i Instances) InstanceType(ctx context.Context, name types.NodeName) (strin
 		CloudConfiguration: i.config,
 	}
 
-	serverErr := server.GetByHostname(string(name))
+	_, serverErr := server.InitializeByHostname(string(name))
 
 	return server.Information.Package.Identifier, serverErr
 }
@@ -112,7 +112,7 @@ func (i Instances) InstanceTypeByProviderID(ctx context.Context, providerID stri
 		CloudConfiguration: i.config,
 	}
 
-	serverErr := server.GetByID(providerID)
+	_, serverErr := server.InitializeByID(providerID)
 
 	return server.Information.Package.Identifier, serverErr
 }
@@ -138,9 +138,9 @@ func (i Instances) InstanceExistsByProviderID(ctx context.Context, providerID st
 		CloudConfiguration: i.config,
 	}
 
-	serverErr := server.GetByID(providerID)
+	notFound, serverErr := server.InitializeByID(providerID)
 
-	return (serverErr == nil), nil
+	return (serverErr == nil || notFound == false), nil
 }
 
 // InstanceShutdownByProviderID returns true if the instance is shutdown in cloudprovider.
@@ -149,7 +149,7 @@ func (i Instances) InstanceShutdownByProviderID(ctx context.Context, providerID 
 		CloudConfiguration: i.config,
 	}
 
-	serverErr := server.GetByID(providerID)
+	_, serverErr := server.InitializeByID(providerID)
 
 	if serverErr != nil {
 		return false, serverErr

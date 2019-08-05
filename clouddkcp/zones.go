@@ -43,7 +43,7 @@ func (z Zones) GetZoneByProviderID(ctx context.Context, providerID string) (clou
 		CloudConfiguration: z.config,
 	}
 
-	serverErr := server.GetByID(providerID)
+	_, serverErr := server.InitializeByID(providerID)
 
 	if serverErr != nil {
 		return zone, serverErr
@@ -64,7 +64,7 @@ func (z Zones) GetZoneByNodeName(ctx context.Context, nodeName types.NodeName) (
 		CloudConfiguration: z.config,
 	}
 
-	serverErr := server.GetByHostname(string(nodeName))
+	_, serverErr := server.InitializeByHostname(string(nodeName))
 
 	if serverErr != nil {
 		return zone, serverErr

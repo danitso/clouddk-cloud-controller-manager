@@ -1,6 +1,7 @@
 package clouddkcp
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"regexp"
@@ -9,6 +10,8 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	cloudprovider "k8s.io/cloud-provider"
+
+	"github.com/pkg/sftp"
 )
 
 const (
@@ -94,14 +97,17 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 		return server, err
 	}
 
+	defer sshClient.Close()
+
 	sshSession, err := sshClient.NewSession()
 
 	if err != nil {
-		sshClient.Close()
 		server.Destroy()
 
 		return server, err
 	}
+
+	defer sshSession.Close()
 
 	_, sshOuputErr := sshSession.CombinedOutput(
 		"export DEBIAN_FRONTEND=noninteractive && " +
@@ -118,13 +124,10 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 	)
 
 	if sshOuputErr != nil {
-		sshClient.Close()
 		server.Destroy()
 
 		return server, sshOuputErr
 	}
-
-	sshClient.Close()
 
 	return server, nil
 }
@@ -238,10 +241,14 @@ func (l LoadBalancers) GetLoadBalancer(ctx context.Context, clusterName string, 
 		CloudConfiguration: l.config,
 	}
 
-	serverErr := server.GetByHostname(hostname)
+	notFound, serverErr := server.InitializeByHostname(hostname)
 
 	if serverErr != nil {
-		return nil, false, nil
+		if notFound {
+			return &v1.LoadBalancerStatus{}, false, nil
+		}
+
+		return &v1.LoadBalancerStatus{}, true, serverErr
 	}
 
 	return &v1.LoadBalancerStatus{
@@ -269,9 +276,13 @@ func (l LoadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName strin
 		CloudConfiguration: l.config,
 	}
 
-	serverErr := server.GetByHostname(hostname)
+	notFound, serverErr := server.InitializeByHostname(hostname)
 
 	if serverErr != nil {
+		if !notFound {
+			return nil, serverErr
+		}
+
 		server, serverErr = createLoadBalancer(l.config, hostname, service)
 
 		if serverErr != nil {
@@ -304,10 +315,10 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 		CloudConfiguration: l.config,
 	}
 
-	serverErr := server.GetByHostname(hostname)
+	_, err := server.InitializeByHostname(hostname)
 
-	if serverErr != nil {
-		return serverErr
+	if err != nil {
+		return err
 	}
 
 	// Retrieve the configuration values stored as annotations.
@@ -462,26 +473,47 @@ listen %d
 		}
 	}
 
-	// Upload the new configuration file to the server and reload the HAProxy service.
-	sshClient, sshClientErr := server.SSH()
+	// Upload the new configuration file to the server using SFTP.
+	sshClient, err := server.SSH()
 
-	if sshClientErr != nil {
-		return sshClientErr
+	if err != nil {
+		return err
 	}
 
-	_, sshSessionErr := sshClient.NewSession()
+	defer sshClient.Close()
 
-	if sshSessionErr != nil {
-		sshClient.Close()
+	sftp, err := sftp.NewClient(sshClient)
 
-		return sshSessionErr
+	if err != nil {
+		return err
 	}
 
-	sshClient.Close()
+	defer sftp.Close()
 
-	// ... Work in progress ...
+	cfgFile, err := sftp.Create("/etc/haproxy/haproxy.cfg")
 
-	return nil
+	if err != nil {
+		return err
+	}
+
+	_, err = cfgFile.Write(bytes.NewBufferString(configFileContents).Bytes())
+
+	if err != nil {
+		return err
+	}
+
+	// Reload the HAProxy service now that the configuration file has been updated.
+	sshSession, err := sshClient.NewSession()
+
+	if err != nil {
+		return err
+	}
+
+	defer sshSession.Close()
+
+	_, err = sshSession.CombinedOutput("systemctl reload haproxy")
+
+	return err
 }
 
 // EnsureLoadBalancerDeleted deletes the specified load balancer if it exists, returning nil if the load balancer specified either didn't exist or was successfully deleted.
@@ -495,10 +527,14 @@ func (l LoadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterNam
 		CloudConfiguration: l.config,
 	}
 
-	serverErr := server.GetByHostname(hostname)
+	notFound, serverErr := server.InitializeByHostname(hostname)
 
 	if serverErr != nil {
-		return nil
+		if notFound {
+			return nil
+		}
+
+		return serverErr
 	}
 
 	serverErr = server.Destroy()
