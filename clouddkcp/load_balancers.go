@@ -129,7 +129,7 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 		sshClient.Close()
 		server.Destroy()
 
-		return server, sshSessionErr
+		return server, sshOuputErr
 	}
 
 	sshClient.Close()
