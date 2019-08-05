@@ -350,25 +350,25 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	configFileContents := strings.TrimSpace(fmt.Sprintf(
 		`
 global
-	log							/dev/log local0 info alert
-	log							/dev/log local1 notice alert
+	log /dev/log local0 info alert
+	log /dev/log local1 notice alert
 
-	chroot						/var/lib/haproxy
+	chroot /var/lib/haproxy
 
-	stats						socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
-	stats						timeout 30s
+	stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+	stats timeout 30s
 
-	user						haproxy
-	group						haproxy
+	user haproxy
+	group haproxy
 
-	ca-base						/etc/ssl/certs
-	crt-base					/etc/ssl/private
+	ca-base /etc/ssl/certs
+	crt-base /etc/ssl/private
 
-	ssl-default-bind-ciphers	ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS
-	ssl-default-bind-options	no-sslv3
+	ssl-default-bind-ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS
+	ssl-default-bind-options no-sslv3
 
-	nbproc						%d
-	nbthread					2
+	nbproc %d
+	nbthread 2
 		`,
 		processorCount,
 	))
@@ -376,17 +376,17 @@ global
 	configFileContents = configFileContents + "\n\n"
 
 	for i := 1; i <= processorCount; i++ {
-		configFileContents = configFileContents + fmt.Sprintf("\tcpu-map                     %d %d\n", i, i)
+		configFileContents = configFileContents + fmt.Sprintf("\tcpu-map %d %d\n", i, i)
 	}
 
 	configFileContents = configFileContents + "\n"
 	configFileContents = configFileContents + strings.TrimSpace(fmt.Sprintf(
 		`
 defaults
-	balance	%s
-	log		global
-	maxconn	%d
-	mode	%s
+	balance %s
+	log global
+	maxconn %d
+	mode %s
 		`,
 		algorithm,
 		int(connectionLimit/processorCount),
@@ -399,8 +399,8 @@ defaults
 		configFileContents = configFileContents + strings.TrimSpace(fmt.Sprintf(
 			`
 listen p%d
-	bind	0.0.0.0:%d
-	timeout	check %s
+	bind 0.0.0.0:%d
+	timeout check %s
 			`,
 			port.Port,
 			port.Port,
@@ -408,7 +408,7 @@ listen p%d
 		))
 
 		if healthCheckProtocol == "http" {
-			configFileContents = configFileContents + fmt.Sprintf("\toption	httpchk GET %s HTTP/1.0\n", healthCheckPath)
+			configFileContents = configFileContents + fmt.Sprintf("\toption httpchk GET %s HTTP/1.0\n", healthCheckPath)
 		} else if healthCheckProtocol == "https" {
 			configFileContents = configFileContents + "\toption ssl-hello-chk\n"
 		} else {
@@ -424,7 +424,7 @@ listen p%d
 				}
 
 				configFileContents = configFileContents + fmt.Sprintf(
-					"\tserver	%s:%d %s:%d maxconn %d check inter %s fall %s rise %s\n",
+					"\tserver %s:%d %s:%d maxconn %d check inter %s fall %s rise %s\n",
 					address.Address,
 					port.NodePort,
 					address.Address,
