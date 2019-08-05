@@ -13,14 +13,18 @@ import (
 
 const (
 	// annoLoadBalancerAlgorithm is the annotation specifying which load balancing algorithm to use.
-	// Options are leastconn, roundrobin and source. Defaults to roundrobin.
+	// Options are leastconn, roundrobin and source.
+	// Defaults to roundrobin.
 	annoLoadBalancerAlgorithm = "kubernetes.cloud.dk/load-balancer-algorithm"
 
 	// annoLoadBalancerClientTimeout is the annotation used to specify the number of seconds the Load Balancer will allow a client to idle for.
+	// The value must be between 1 and 86400.
 	// Defaults to 30.
 	annoLoadBalancerClientTimeout = "kubernetes.cloud.dk/load-balancer-client-timeout"
 
 	// annoLoadBalancerAlgorithm is the annotation specifying the connection limit.
+	// The value must be between 1 and 20000.
+	// Defaults to 1000.
 	annoLoadBalancerConnectionLimit = "kubernetes.cloud.dk/load-balancer-connection-limit"
 
 	// annoLoadBalancerEnableProxyProtocol is the annotation specifying whether the PROXY protocol should be enabled.
@@ -28,25 +32,30 @@ const (
 	annoLoadBalancerEnableProxyProtocol = "kubernetes.cloud.dk/load-balancer-enable-proxy-protocol"
 
 	// annoLoadBalancerHealthCheckInternal is the annotation used to specify the number of seconds between between two consecutive health checks.
-	// The value must be between 3 and 300. Defaults to 3.
+	// The value must be between 3 and 300.
+	// Defaults to 3.
 	annoLoadBalancerHealthCheckInterval = "kubernetes.cloud.dk/load-balancer-health-check-interval"
 
 	// annoLoadBalancerHealthCheckThresholdHealthy is the annotation used to specify the number of times a health check must pass for a backend to be marked "healthy" for the given service and be re-added to the pool.
-	// The value must be between 2 and 10. Defaults to 5.
+	// The value must be between 2 and 10.
+	// Defaults to 5.
 	annoLoadBalancerHealthCheckThresholdHealthy = "kubernetes.cloud.dk/load-balancer-health-check-threshold-healthy"
 
 	// annoLoadBalancerHealthCheckThresholdUnhealthy is the annotation used to specify the number of times a health check must fail for a backend to be marked "unhealthy" and be removed from the pool for the given service.
-	// The value must be between 2 and 10. Defaults to 3.
+	// The value must be between 2 and 10.
+	// Defaults to 3.
 	annoLoadBalancerHealthCheckThresholdUnhealthy = "kubernetes.cloud.dk/load-balancer-health-check-threshold-unhealthy"
 
 	// annoLoadBalancerHealthCheckTimeout is the annotation used to specify the number of seconds the Load Balancer will wait for a response until marking a health check as failed.
-	// The value must be between 3 and 300. Defaults to 5.
+	// The value must be between 3 and 300.
+	// Defaults to 5.
 	annoLoadBalancerHealthCheckTimeout = "kubernetes.cloud.dk/load-balancer-health-check-timeout"
 
 	// annoLoadBalancerID is the annotation specifying the load balancer ID used to enable fast retrievals of load balancers from the API.
 	annoLoadBalancerID = "kubernetes.cloud.dk/load-balancer-id"
 
 	// annoLoadBalancerServerTimeout is the annotation used to specify the number of seconds the Load Balancer will allow a server to idle for.
+	// The value must be between 1 and 86400.
 	// Defaults to 60.
 	annoLoadBalancerServerTimeout = "kubernetes.cloud.dk/load-balancer-server-timeout"
 
@@ -172,7 +181,7 @@ func parseBoolAnnotation(value string, defaultValue bool) (bool, error) {
 }
 
 // parseIntAnnotation parses an annotation containing an integer
-func parseIntAnnotation(value string, defaultValue int, minValue int) (int, error) {
+func parseIntAnnotation(value string, defaultValue int, minValue int, maxValue int) (int, error) {
 	if value == "" {
 		return defaultValue, nil
 	}
@@ -185,6 +194,10 @@ func parseIntAnnotation(value string, defaultValue int, minValue int) (int, erro
 
 	if i < minValue {
 		return i, fmt.Errorf("The value must be greater than %d (value: %d)", minValue, i)
+	}
+
+	if i > maxValue {
+		return i, fmt.Errorf("The value must be smaller than %d (value: %d)", maxValue, i)
 	}
 
 	return i, nil
@@ -292,44 +305,44 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 		return err
 	}
 
-	clientTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerClientTimeout], 30, 1)
+	clientTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerClientTimeout], 30, 1, 86400)
 
 	if err != nil {
 		return err
 	}
 
-	connectionLimit, err := parseIntAnnotation(service.Annotations[annoLoadBalancerConnectionLimit], 1000, 1)
+	connectionLimit, err := parseIntAnnotation(service.Annotations[annoLoadBalancerConnectionLimit], 1000, 1, 20000)
 
 	if err != nil {
 		return err
 	}
 
 	enableProxyProtocol, _ := parseBoolAnnotation(service.Annotations[annoLoadBalancerEnableProxyProtocol], false)
-	healthCheckInterval, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckInterval], 3, 1)
+	healthCheckInterval, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckInterval], 3, 3, 300)
 
 	if err != nil {
 		return err
 	}
 
-	healthCheckThresholdHealthy, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckThresholdHealthy], 5, 1)
+	healthCheckThresholdHealthy, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckThresholdHealthy], 5, 2, 10)
 
 	if err != nil {
 		return err
 	}
 
-	healthCheckThresholdUnhealthy, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckThresholdUnhealthy], 3, 1)
+	healthCheckThresholdUnhealthy, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckThresholdUnhealthy], 3, 2, 10)
 
 	if err != nil {
 		return err
 	}
 
-	healthCheckTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckTimeout], 5, 1)
+	healthCheckTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckTimeout], 5, 3, 300)
 
 	if err != nil {
 		return err
 	}
 
-	serverTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerServerTimeout], 60, 1)
+	serverTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerServerTimeout], 60, 1, 86400)
 
 	if err != nil {
 		return err
