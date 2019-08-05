@@ -69,7 +69,7 @@ func (s CloudServer) Create(locationID string, packageID string, hostname string
 
 	for timeElapsed.Seconds() < timeMax {
 		if int64(timeElapsed.Seconds())%timeDelay == 0 {
-			sshClient, sshErr = ssh.Dial("tcp", s.Information.NetworkInterfaces[0].IPAddresses[0].Address, sshConfig)
+			sshClient, sshErr = ssh.Dial("tcp", s.Information.NetworkInterfaces[0].IPAddresses[0].Address+":22", sshConfig)
 
 			if sshErr == nil {
 				break
@@ -239,7 +239,7 @@ func (s CloudServer) SSH() (*ssh.Client, error) {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	sshClient, sshErr := ssh.Dial("tcp", s.Information.NetworkInterfaces[0].IPAddresses[0].Address, sshConfig)
+	sshClient, sshErr := ssh.Dial("tcp", s.Information.NetworkInterfaces[0].IPAddresses[0].Address+":22", sshConfig)
 
 	if sshErr != nil {
 		return nil, sshErr
