@@ -43,7 +43,7 @@ spec:
         - --use-service-account-credentials
         - --allocate-node-cidrs=true
         - --configure-cloud-routes=true
-        - --cluster-cidr=172.17.0.0/16
+        - --cluster-cidr=10.32.0.0/12
         envFrom:
         - secretRef:
             name: clouddk-cloud-controller-manager-config
