@@ -16,8 +16,9 @@ In case the cluster was deployed with `kubeadm`, you must edit `/etc/kubernetes/
 Alternatively, you can add the following fragment to a `kubeadm` configuration file:
 
 ```yaml
-controllerManagerExtraArgs:
-  cloud-provider: external
+controllerManager:
+  extraArgs:
+    cloud-provider: external
 ```
 
 ## Installation
