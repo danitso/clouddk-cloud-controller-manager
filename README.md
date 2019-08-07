@@ -26,15 +26,19 @@ Follow these simple steps in order to install the controller:
 
 1. Ensure that `kubectl` is configured to reach your cluster
 
-1. Retrieve the API key from [https://my.cloud.dk/account/api-key](https://my.cloud.dk/account/api-key)
+1. Retrieve the API key from [https://my.cloud.dk/account/api-key](https://my.cloud.dk/account/api-key) and encode it
+
+    ```bash
+    echo "CLOUDDK_API_KEY: '$(echo "the API key here" | base64 | tr -d '\n')'"
+    ```
 
 1. Create a new SSH key pair
 
     ```bash
     rm -f /tmp/clouddk_ssh_key* \
         && ssh-keygen -b 4096 -t rsa -f /tmp/clouddk_ssh_key -q -N "" \
-        && echo "CLOUDDK_SSH_PRIVATE_KEY: '$(cat /tmp/clouddk_ssh_key | base64 | tr -d '\n')'" \
-        && echo "CLOUDDK_SSH_PUBLIC_KEY: '$(cat /tmp/clouddk_ssh_key.pub | base64 | tr -d '\n')'"
+        && echo "CLOUDDK_SSH_PRIVATE_KEY: '$(cat /tmp/clouddk_ssh_key | base64 | tr -d '\n' | base64 | tr -d '\n')'" \
+        && echo "CLOUDDK_SSH_PUBLIC_KEY: '$(cat /tmp/clouddk_ssh_key.pub | base64 | tr -d '\n' | base64 | tr -d '\n')'"
     ```
 
 1. Create a new file called `config.yaml` with the following contents:
@@ -47,10 +51,10 @@ Follow these simple steps in order to install the controller:
       namespace: kube-system
     type: Opaque
     data:
-      CLOUDDK_API_ENDPOINT: 'https://api.cloud.dk/v1'
-      CLOUDDK_API_KEY: 'the API key retrieved in step 2'
-      CLOUDDK_SSH_PRIVATE_KEY: 'the private SSH key generated in step 3'
-      CLOUDDK_SSH_PUBLIC_KEY: 'the public SSH key generated in step 3'
+      CLOUDDK_API_ENDPOINT: 'aHR0cHM6Ly9hcGkuY2xvdWQuZGsvdjEK'
+      CLOUDDK_API_KEY: 'The encoded API key generated in step 2'
+      CLOUDDK_SSH_PRIVATE_KEY: 'The encoded private SSH key generated in step 3'
+      CLOUDDK_SSH_PUBLIC_KEY: 'The encoded public SSH key generated in step 3'
     ```
 
 1. Create the secret in `config.yaml` using `kubectl`
