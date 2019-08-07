@@ -52,7 +52,10 @@ func init() {
 
 // newCloud initializes a new Cloud object.
 func newCloud() (cloudprovider.Interface, error) {
-	config := CloudConfiguration{}
+	config := CloudConfiguration{
+		ClientSettings: &clouddk.ClientSettings{},
+	}
+
 	config.ClientSettings.Endpoint = os.Getenv(envAPIEndpoint)
 
 	if config.ClientSettings.Endpoint == "" {
