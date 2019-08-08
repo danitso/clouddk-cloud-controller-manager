@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 
 	v1 "k8s.io/api/core/v1"
 	cloudprovider "k8s.io/cloud-provider"
@@ -142,9 +141,7 @@ func (i Instances) AddSSHKeyToAllInstances(ctx context.Context, user string, key
 // CurrentNodeName returns the name of the node we are currently running on.
 // On most clouds (e.g. GCE) this is the hostname, so we provide the hostname.
 func (i Instances) CurrentNodeName(ctx context.Context, hostname string) (types.NodeName, error) {
-	hostname, err := os.Hostname()
-
-	return types.NodeName(hostname), err
+	return types.NodeName(hostname), nil
 }
 
 // InstanceExistsByProviderID returns true if the instance for the given provider exists.

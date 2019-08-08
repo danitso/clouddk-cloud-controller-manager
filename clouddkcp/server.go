@@ -22,7 +22,7 @@ type CloudServer struct {
 }
 
 // Create creates a new Cloud.dk server.
-func (s CloudServer) Create(locationID string, packageID string, hostname string) error {
+func (s *CloudServer) Create(locationID string, packageID string, hostname string) error {
 	if s.Information.Identifier != "" {
 		return errors.New("The server has already been initialized")
 	}
@@ -127,7 +127,7 @@ func (s CloudServer) Create(locationID string, packageID string, hostname string
 }
 
 // Destroy destroys a Cloud.dk server.
-func (s CloudServer) Destroy() error {
+func (s *CloudServer) Destroy() error {
 	if s.Information.Identifier == "" {
 		return errors.New("The server has not been initialized")
 	}
@@ -152,7 +152,7 @@ func (s CloudServer) Destroy() error {
 }
 
 // GetRandomPassword generates a random password of a fixed length.
-func (s CloudServer) GetRandomPassword(length int) string {
+func (s *CloudServer) GetRandomPassword(length int) string {
 	var b strings.Builder
 
 	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖabcdefghijklmnopqrstuvwxyzåäö0123456789")
@@ -165,7 +165,7 @@ func (s CloudServer) GetRandomPassword(length int) string {
 }
 
 // InitializeByHostname initializes a CloudServer based on a hostname.
-func (s CloudServer) InitializeByHostname(hostname string) (notFound bool, e error) {
+func (s *CloudServer) InitializeByHostname(hostname string) (notFound bool, e error) {
 	if s.Information.Identifier != "" {
 		return false, errors.New("The server has already been initialized")
 	}
@@ -211,7 +211,7 @@ func (s CloudServer) InitializeByHostname(hostname string) (notFound bool, e err
 }
 
 // InitializeByID initializes a CloudServer based on an identifier.
-func (s CloudServer) InitializeByID(id string) (notFound bool, e error) {
+func (s *CloudServer) InitializeByID(id string) (notFound bool, e error) {
 	if s.Information.Identifier != "" {
 		return false, errors.New("The server has already been initialized")
 	}
@@ -246,7 +246,7 @@ func (s CloudServer) InitializeByID(id string) (notFound bool, e error) {
 }
 
 // SSH establishes a new SSH connection to a Cloud.dk server.
-func (s CloudServer) SSH() (*ssh.Client, error) {
+func (s *CloudServer) SSH() (*ssh.Client, error) {
 	if s.Information.Identifier == "" {
 		return nil, errors.New("The server has not been initialized")
 	}
