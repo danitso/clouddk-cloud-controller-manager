@@ -35,10 +35,10 @@ func (i Instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1
 		CloudConfiguration: i.config,
 	}
 
-	_, serverErr := server.InitializeByHostname(string(name))
+	_, err := server.InitializeByHostname(string(name))
 
-	if serverErr != nil {
-		return nodeAddresses, serverErr
+	if err != nil {
+		return nodeAddresses, err
 	}
 
 	for _, n := range server.Information.NetworkInterfaces {
@@ -64,10 +64,10 @@ func (i Instances) NodeAddressesByProviderID(ctx context.Context, providerID str
 		CloudConfiguration: i.config,
 	}
 
-	_, serverErr := server.InitializeByID(providerID)
+	_, err := server.InitializeByID(providerID)
 
-	if serverErr != nil {
-		return nodeAddresses, serverErr
+	if err != nil {
+		return nodeAddresses, err
 	}
 
 	for _, n := range server.Information.NetworkInterfaces {
@@ -90,9 +90,9 @@ func (i Instances) InstanceID(ctx context.Context, nodeName types.NodeName) (str
 		CloudConfiguration: i.config,
 	}
 
-	_, serverErr := server.InitializeByHostname(string(nodeName))
+	_, err := server.InitializeByHostname(string(nodeName))
 
-	return server.Information.Identifier, serverErr
+	return server.Information.Identifier, err
 }
 
 // InstanceType returns the type of the specified instance.
@@ -101,9 +101,9 @@ func (i Instances) InstanceType(ctx context.Context, name types.NodeName) (strin
 		CloudConfiguration: i.config,
 	}
 
-	_, serverErr := server.InitializeByHostname(string(name))
+	_, err := server.InitializeByHostname(string(name))
 
-	return server.Information.Package.Identifier, serverErr
+	return server.Information.Package.Identifier, err
 }
 
 // InstanceTypeByProviderID returns the type of the specified instance.
@@ -112,9 +112,9 @@ func (i Instances) InstanceTypeByProviderID(ctx context.Context, providerID stri
 		CloudConfiguration: i.config,
 	}
 
-	_, serverErr := server.InitializeByID(providerID)
+	_, err := server.InitializeByID(providerID)
 
-	return server.Information.Package.Identifier, serverErr
+	return server.Information.Package.Identifier, err
 }
 
 // AddSSHKeyToAllInstances adds an SSH public key as a legal identity for all instances expected format for the key is standard ssh-keygen format: <protocol> <blob>.
@@ -138,9 +138,9 @@ func (i Instances) InstanceExistsByProviderID(ctx context.Context, providerID st
 		CloudConfiguration: i.config,
 	}
 
-	notFound, serverErr := server.InitializeByID(providerID)
+	notFound, err := server.InitializeByID(providerID)
 
-	return (serverErr == nil || notFound == false), nil
+	return (err == nil || notFound == false), nil
 }
 
 // InstanceShutdownByProviderID returns true if the instance is shutdown in cloudprovider.
@@ -149,13 +149,13 @@ func (i Instances) InstanceShutdownByProviderID(ctx context.Context, providerID 
 		CloudConfiguration: i.config,
 	}
 
-	_, serverErr := server.InitializeByID(providerID)
+	_, err := server.InitializeByID(providerID)
 
-	if serverErr != nil {
-		return false, serverErr
+	if err != nil {
+		return false, err
 	}
 
-	res, resErr := clouddk.DoClientRequest(
+	res, err := clouddk.DoClientRequest(
 		i.config.ClientSettings,
 		"GET",
 		fmt.Sprintf("cloudservers/%s/logs", server.Information.Identifier),
@@ -165,15 +165,15 @@ func (i Instances) InstanceShutdownByProviderID(ctx context.Context, providerID 
 		1,
 	)
 
-	if resErr != nil {
-		return false, resErr
+	if err != nil {
+		return false, err
 	}
 
 	logsList := clouddk.LogsListBody{}
-	decodeErr := json.NewDecoder(res.Body).Decode(&logsList)
+	err = json.NewDecoder(res.Body).Decode(&logsList)
 
-	if decodeErr != nil {
-		return false, decodeErr
+	if err != nil {
+		return false, err
 	}
 
 	for _, v := range logsList {

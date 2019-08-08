@@ -25,10 +25,10 @@ func newZones(c *CloudConfiguration) cloudprovider.Zones {
 // In most cases, this method is called from the kubelet querying a local metadata service to acquire its zone.
 // For the case of external cloud providers, use GetZoneByProviderID or GetZoneByNodeName since GetZone can no longer be called from the kubelets.
 func (z Zones) GetZone(ctx context.Context) (cloudprovider.Zone, error) {
-	hostname, hostnameErr := os.Hostname()
+	hostname, err := os.Hostname()
 
-	if hostnameErr != nil {
-		return cloudprovider.Zone{}, hostnameErr
+	if err != nil {
+		return cloudprovider.Zone{}, err
 	}
 
 	return z.GetZoneByNodeName(ctx, types.NodeName(hostname))
@@ -43,10 +43,10 @@ func (z Zones) GetZoneByProviderID(ctx context.Context, providerID string) (clou
 		CloudConfiguration: z.config,
 	}
 
-	_, serverErr := server.InitializeByID(providerID)
+	_, err := server.InitializeByID(providerID)
 
-	if serverErr != nil {
-		return zone, serverErr
+	if err != nil {
+		return zone, err
 	}
 
 	zone.FailureDomain = server.Information.Location.Identifier
@@ -64,10 +64,10 @@ func (z Zones) GetZoneByNodeName(ctx context.Context, nodeName types.NodeName) (
 		CloudConfiguration: z.config,
 	}
 
-	_, serverErr := server.InitializeByHostname(string(nodeName))
+	_, err := server.InitializeByHostname(string(nodeName))
 
-	if serverErr != nil {
-		return zone, serverErr
+	if err != nil {
+		return zone, err
 	}
 
 	zone.FailureDomain = server.Information.Location.Identifier

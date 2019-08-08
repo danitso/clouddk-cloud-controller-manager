@@ -109,7 +109,7 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 
 	defer sshSession.Close()
 
-	_, sshOuputErr := sshSession.CombinedOutput(
+	_, err = sshSession.CombinedOutput(
 		"export DEBIAN_FRONTEND=noninteractive && " +
 			"apt-get -qq update && " +
 			"apt-get -qq install -y software-properties-common && " +
@@ -123,10 +123,10 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 			"systemctl restart haproxy",
 	)
 
-	if sshOuputErr != nil {
+	if err != nil {
 		server.Destroy()
 
-		return server, sshOuputErr
+		return server, err
 	}
 
 	return server, nil
@@ -241,14 +241,14 @@ func (l LoadBalancers) GetLoadBalancer(ctx context.Context, clusterName string, 
 		CloudConfiguration: l.config,
 	}
 
-	notFound, serverErr := server.InitializeByHostname(hostname)
+	notFound, err := server.InitializeByHostname(hostname)
 
-	if serverErr != nil {
+	if err != nil {
 		if notFound {
 			return &v1.LoadBalancerStatus{}, false, nil
 		}
 
-		return &v1.LoadBalancerStatus{}, true, serverErr
+		return &v1.LoadBalancerStatus{}, true, err
 	}
 
 	return &v1.LoadBalancerStatus{
@@ -276,24 +276,24 @@ func (l LoadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName strin
 		CloudConfiguration: l.config,
 	}
 
-	notFound, serverErr := server.InitializeByHostname(hostname)
+	notFound, err := server.InitializeByHostname(hostname)
 
-	if serverErr != nil {
+	if err != nil {
 		if !notFound {
-			return nil, serverErr
+			return nil, err
 		}
 
-		server, serverErr = createLoadBalancer(l.config, hostname, service)
+		server, err = createLoadBalancer(l.config, hostname, service)
 
-		if serverErr != nil {
-			return nil, serverErr
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	updateErr := l.UpdateLoadBalancer(ctx, clusterName, service, nodes)
+	err = l.UpdateLoadBalancer(ctx, clusterName, service, nodes)
 
-	if updateErr != nil {
-		return nil, updateErr
+	if err != nil {
+		return nil, err
 	}
 
 	return &v1.LoadBalancerStatus{
@@ -527,20 +527,20 @@ func (l LoadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterNam
 		CloudConfiguration: l.config,
 	}
 
-	notFound, serverErr := server.InitializeByHostname(hostname)
+	notFound, err := server.InitializeByHostname(hostname)
 
-	if serverErr != nil {
+	if err != nil {
 		if notFound {
 			return nil
 		}
 
-		return serverErr
+		return err
 	}
 
-	serverErr = server.Destroy()
+	err = server.Destroy()
 
-	if serverErr != nil {
-		return serverErr
+	if err != nil {
+		return err
 	}
 
 	return nil

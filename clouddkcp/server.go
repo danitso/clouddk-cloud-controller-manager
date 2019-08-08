@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
+	"net/url"
 	"strings"
 	"time"
 
@@ -37,28 +39,27 @@ func (s CloudServer) Create(locationID string, packageID string, hostname string
 	}
 
 	reqBody := new(bytes.Buffer)
-	encodeErr := json.NewEncoder(reqBody).Encode(body)
+	err := json.NewEncoder(reqBody).Encode(body)
 
-	if encodeErr != nil {
-		return encodeErr
+	if err != nil {
+		return err
 	}
 
-	res, resErr := clouddk.DoClientRequest(s.CloudConfiguration.ClientSettings, "POST", "cloudservers", reqBody, []int{200}, 60, 10)
+	res, err := clouddk.DoClientRequest(s.CloudConfiguration.ClientSettings, "POST", "cloudservers", reqBody, []int{200}, 60, 10)
 
-	if resErr != nil {
-		return resErr
+	if err != nil {
+		return err
 	}
 
 	s.Information = clouddk.ServerBody{}
-	decodeErr := json.NewDecoder(res.Body).Decode(&s.Information)
+	err = json.NewDecoder(res.Body).Decode(&s.Information)
 
-	if decodeErr != nil {
-		return decodeErr
+	if err != nil {
+		return err
 	}
 
 	// Wait for the server to become ready by testing SSH connectivity.
 	var sshClient *ssh.Client
-	var sshErr error
 
 	sshConfig := &ssh.ClientConfig{
 		User:            "root",
@@ -71,11 +72,13 @@ func (s CloudServer) Create(locationID string, packageID string, hostname string
 	timeStart := time.Now()
 	timeElapsed := timeStart.Sub(timeStart)
 
+	err = nil
+
 	for timeElapsed.Seconds() < timeMax {
 		if int64(timeElapsed.Seconds())%timeDelay == 0 {
-			sshClient, sshErr = ssh.Dial("tcp", s.Information.NetworkInterfaces[0].IPAddresses[0].Address+":22", sshConfig)
+			sshClient, err = ssh.Dial("tcp", s.Information.NetworkInterfaces[0].IPAddresses[0].Address+":22", sshConfig)
 
-			if sshErr == nil {
+			if err == nil {
 				break
 			}
 
@@ -87,38 +90,38 @@ func (s CloudServer) Create(locationID string, packageID string, hostname string
 		timeElapsed = time.Now().Sub(timeStart)
 	}
 
-	if sshErr != nil {
+	if err != nil {
 		s.Destroy()
 
-		return sshErr
+		return err
 	}
+
+	defer sshClient.Close()
 
 	s.Information.Booted = true
 
 	// Configure the server by installing the required software and authorizing the SSH key.
-	sshSession, sshSessionErr := sshClient.NewSession()
+	sshSession, err := sshClient.NewSession()
 
-	if sshSessionErr != nil {
-		sshClient.Close()
+	if err != nil {
 		s.Destroy()
 
-		return sshSessionErr
+		return err
 	}
 
-	_, sshOuputErr := sshSession.CombinedOutput(
+	defer sshSession.Close()
+
+	_, err = sshSession.CombinedOutput(
 		fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys && ", strings.TrimSpace(s.CloudConfiguration.PublicKey)) +
 			"sed -i 's/#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && " +
 			"systemctl restart ssh",
 	)
 
-	if sshOuputErr != nil {
-		sshClient.Close()
+	if err != nil {
 		s.Destroy()
 
-		return sshSessionErr
+		return err
 	}
-
-	sshClient.Close()
 
 	return nil
 }
@@ -171,30 +174,34 @@ func (s CloudServer) InitializeByHostname(hostname string) (notFound bool, e err
 		return false, errors.New("Cannot retrieve a server without a hostname")
 	}
 
-	res, resErr := clouddk.DoClientRequest(
+	res, err := clouddk.DoClientRequest(
 		s.CloudConfiguration.ClientSettings,
 		"GET",
-		fmt.Sprintf("cloudservers?hostname=%s", hostname),
+		fmt.Sprintf("cloudservers?hostname=%s", url.QueryEscape(hostname)),
 		new(bytes.Buffer),
 		[]int{200},
 		1,
 		1,
 	)
 
-	if resErr != nil {
-		return false, resErr
+	if err != nil {
+		return false, err
 	}
 
 	servers := make(clouddk.ServerListBody, 0)
-	decodeErr := json.NewDecoder(res.Body).Decode(&servers)
+	err = json.NewDecoder(res.Body).Decode(&servers)
 
-	if decodeErr != nil {
-		return false, decodeErr
+	if err != nil {
+		return false, err
 	}
 
 	for _, v := range servers {
+		log.Printf("[DEBUG] Matching hostname '%s' to '%s'", v.Hostname, hostname)
+
 		if v.Hostname == hostname {
 			s.Information = v
+
+			log.Printf("[DEBUG] Match found for hostname '%s' (id: %s)", hostname, s.Information.Identifier)
 
 			return false, nil
 		}
@@ -209,11 +216,13 @@ func (s CloudServer) InitializeByID(id string) (notFound bool, e error) {
 		return false, errors.New("The server has already been initialized")
 	}
 
+	id = strings.ReplaceAll(id, "clouddk://", "")
+
 	if id == "" {
 		return false, errors.New("Cannot retrieve a server without an identifier")
 	}
 
-	res, resErr := clouddk.DoClientRequest(
+	res, err := clouddk.DoClientRequest(
 		s.CloudConfiguration.ClientSettings,
 		"GET",
 		fmt.Sprintf("cloudservers/%s", id),
@@ -223,14 +232,14 @@ func (s CloudServer) InitializeByID(id string) (notFound bool, e error) {
 		1,
 	)
 
-	if resErr != nil {
-		return (res.StatusCode == 404), resErr
+	if err != nil {
+		return (res.StatusCode == 404), err
 	}
 
-	decodeErr := json.NewDecoder(res.Body).Decode(&s.Information)
+	err = json.NewDecoder(res.Body).Decode(&s.Information)
 
-	if decodeErr != nil {
-		return false, decodeErr
+	if err != nil {
+		return false, err
 	}
 
 	return false, nil
@@ -243,10 +252,10 @@ func (s CloudServer) SSH() (*ssh.Client, error) {
 	}
 
 	sshPrivateKeyBuffer := bytes.NewBufferString(s.CloudConfiguration.PrivateKey)
-	sshPrivateKeySigner, sshPrivateKeyErr := ssh.ParsePrivateKey(sshPrivateKeyBuffer.Bytes())
+	sshPrivateKeySigner, err := ssh.ParsePrivateKey(sshPrivateKeyBuffer.Bytes())
 
-	if sshPrivateKeyErr != nil {
-		return nil, sshPrivateKeyErr
+	if err != nil {
+		return nil, err
 	}
 
 	sshConfig := &ssh.ClientConfig{
@@ -255,10 +264,10 @@ func (s CloudServer) SSH() (*ssh.Client, error) {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	sshClient, sshErr := ssh.Dial("tcp", s.Information.NetworkInterfaces[0].IPAddresses[0].Address+":22", sshConfig)
+	sshClient, err := ssh.Dial("tcp", s.Information.NetworkInterfaces[0].IPAddresses[0].Address+":22", sshConfig)
 
-	if sshErr != nil {
-		return nil, sshErr
+	if err != nil {
+		return nil, err
 	}
 
 	return sshClient, nil
