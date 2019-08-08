@@ -20,7 +20,7 @@ github.com/coreos/etcd/pkg/types
 github.com/coreos/etcd/pkg/tlsutil
 # github.com/coreos/go-systemd v0.0.0-20181012123002-c6f51f82210d
 github.com/coreos/go-systemd/daemon
-# github.com/danitso/terraform-provider-clouddk v0.0.0-20190804145242-fe93efdacfff
+# github.com/danitso/terraform-provider-clouddk v0.0.0-20190808173721-74a6a7a612d1
 github.com/danitso/terraform-provider-clouddk/clouddk
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
