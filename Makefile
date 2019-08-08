@@ -6,7 +6,7 @@ VERSION=0.1.0
 default: build
 
 build:
-	go build -o "bin/$(NAME)"
+	go build -mod=vendor -o "bin/$(NAME)"
 
 fmt:
 	gofmt -w $(GOFMT_FILES)
@@ -21,6 +21,7 @@ targets: $(TARGETS)
 
 $(TARGETS):
 	GOOS=$@ GOARCH=amd64 CGO_ENABLED=0 go build \
+		-mod=vendor \
 		-o "dist/$@/$(NAME)" \
 		-a -ldflags '-extldflags "-static"'
 	zip \
