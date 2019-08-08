@@ -81,7 +81,7 @@ Follow these simple steps in order to install the controller:
 
 ### LoadBalancer
 
-The `clouddk-cloud-controller-manager` plugin adds support for Load Balancers based on HAProxy. These can be created just like regular load balancers. However, the following annotations can be used in order to modify the default configuration:
+The `clouddk-cloud-controller-manager` plugin adds support for Load Balancers based on HAProxy. These can be created just like regular Load Balancers. However, the following annotations can be used to modify the default configuration:
 
 #### kubernetes.cloud.dk/load-balancer-algorithm
 
