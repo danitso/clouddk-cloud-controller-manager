@@ -6,10 +6,10 @@ import (
 )
 
 const (
-	rtCloud         = "Cloud"
-	rtInstances     = "Instances"
-	rtLoadBalancers = "LoadBalancers"
-	rtZones         = "Zones"
+	rtCloud         = "CLOUD"
+	rtInstances     = "INSTANCES"
+	rtLoadBalancers = "LOADBALANCERS"
+	rtZones         = "ZONES"
 )
 
 // debugCloudAction writes a debug message to the log.

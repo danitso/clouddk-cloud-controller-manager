@@ -58,6 +58,12 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 		return err
 	}
 
+	if len(s.Information.NetworkInterfaces) == 0 {
+		s.Destroy()
+
+		return fmt.Errorf("No network interfaces were created for cloud server '%s'", s.Information.Identifier)
+	}
+
 	// Wait for the server to become ready by testing SSH connectivity.
 	var sshClient *ssh.Client
 
