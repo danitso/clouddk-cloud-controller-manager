@@ -278,13 +278,23 @@ func (l LoadBalancers) GetLoadBalancer(ctx context.Context, clusterName string, 
 		return &v1.LoadBalancerStatus{}, true, err
 	}
 
-	return &v1.LoadBalancerStatus{
-		Ingress: []v1.LoadBalancerIngress{
-			{
-				IP: server.Information.NetworkInterfaces[0].IPAddresses[0].Address,
-			},
-		},
-	}, true, nil
+	ingresses := make([]v1.LoadBalancerIngress, 0)
+
+	for _, nic := range server.Information.NetworkInterfaces {
+		for _, ip := range nic.IPAddresses {
+			debugCloudAction(rtLoadBalancers, "Adding IP address '%s' to load balancer ingress (name: %s)", ip.Address, loadBalancerName)
+
+			ingresses = append(ingresses, v1.LoadBalancerIngress{
+				IP: ip.Address,
+			})
+		}
+	}
+
+	if len(ingresses) == 0 {
+		return &v1.LoadBalancerStatus{}, true, fmt.Errorf("No IP addresses available for load balancer (name: %s)", loadBalancerName)
+	}
+
+	return &v1.LoadBalancerStatus{Ingress: ingresses}, true, nil
 }
 
 // GetLoadBalancerName returns the name of the load balancer.
@@ -326,13 +336,23 @@ func (l LoadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName strin
 		return nil, err
 	}
 
-	return &v1.LoadBalancerStatus{
-		Ingress: []v1.LoadBalancerIngress{
-			{
-				IP: server.Information.NetworkInterfaces[0].IPAddresses[0].Address,
-			},
-		},
-	}, nil
+	ingresses := make([]v1.LoadBalancerIngress, 0)
+
+	for _, nic := range server.Information.NetworkInterfaces {
+		for _, ip := range nic.IPAddresses {
+			debugCloudAction(rtLoadBalancers, "Adding IP '%s' to load balancer ingress (name: %s)", ip.Address, loadBalancerName)
+
+			ingresses = append(ingresses, v1.LoadBalancerIngress{
+				IP: ip.Address,
+			})
+		}
+	}
+
+	if len(ingresses) == 0 {
+		return &v1.LoadBalancerStatus{}, fmt.Errorf("No IP addresses available for load balancer (name: %s)", loadBalancerName)
+	}
+
+	return &v1.LoadBalancerStatus{Ingress: ingresses}, nil
 }
 
 // UpdateLoadBalancer updates hosts under the specified load balancer.
@@ -354,6 +374,12 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 		debugCloudAction(rtLoadBalancers, "Failed to initialize cloud server instance for load balancer (name: %s)", loadBalancerName)
 
 		return err
+	}
+
+	if len(server.Information.NetworkInterfaces) == 0 {
+		debugCloudAction(rtLoadBalancers, "Failed to find any network interfaces for load balancer (name: %s)", loadBalancerName)
+
+		return fmt.Errorf("Cannot update load balancer due to lack of IP addresses (name: %s)", loadBalancerName)
 	}
 
 	// Retrieve the configuration values stored as annotations.
