@@ -52,6 +52,8 @@ func init() {
 
 // newCloud initializes a new Cloud object.
 func newCloud() (cloudprovider.Interface, error) {
+	debugCloudAction(rtCloud, "Creating new cloud provider instance of '%s'", ProviderName)
+
 	config := CloudConfiguration{
 		ClientSettings: &clouddk.ClientSettings{},
 	}
@@ -96,6 +98,8 @@ func newCloud() (cloudprovider.Interface, error) {
 		return nil, fmt.Errorf("The environment variable '%s' is empty", envSSHPublicKey)
 	}
 
+	debugCloudAction(rtCloud, "Configured new cloud provider instance of '%s' to use API endpoint '%s'", ProviderName, config.ClientSettings.Endpoint)
+
 	return Cloud{
 		loadBalancers: newLoadBalancers(&config),
 		instances:     newInstances(&config),
@@ -106,7 +110,7 @@ func newCloud() (cloudprovider.Interface, error) {
 // Initialize provides the cloud with a kubernetes client builder and may spawn goroutines to perform housekeeping or run custom controllers specific to the cloud provider.
 // Any tasks started here should be cleaned up when the stop channel closes.
 func (c Cloud) Initialize(clientBuilder cloudprovider.ControllerClientBuilder, stop <-chan struct{}) {
-	fmt.Printf("Initializing cloud provider '%s'\n", ProviderName)
+	debugCloudAction(rtCloud, "Initializing cloud provider '%s'", c.ProviderName())
 }
 
 // LoadBalancer returns a balancer interface. Also returns true if the interface is supported, false otherwise.

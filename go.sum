@@ -107,6 +107,8 @@ github.com/d2g/dhcp4 v0.0.0-20170904100407-a1d1b6c41b1c/go.mod h1:Ct2BUK8SB0YC1S
 github.com/d2g/dhcp4client v0.0.0-20170829104524-6e570ed0a266/go.mod h1:j0hNfjhrt2SxUOw55nL0ATM/z4Yt3t2Kd1mW34z5W5s=
 github.com/danitso/terraform-provider-clouddk v0.0.0-20190804145242-fe93efdacfff h1:dd54LAfZmN0vbt/x7cnJWg+jCTi5usSLgE9P/1gvWIc=
 github.com/danitso/terraform-provider-clouddk v0.0.0-20190804145242-fe93efdacfff/go.mod h1:AlAJdEuU3xjBJ6WYzI6G5RwkJFqO0xrzst9+q/r6Alk=
+github.com/danitso/terraform-provider-clouddk v0.0.0-20190808173721-74a6a7a612d1 h1:fj/8T/79ekcaSArKi3teuotxle7WjtLcpuNQ6VzS6yg=
+github.com/danitso/terraform-provider-clouddk v0.0.0-20190808173721-74a6a7a612d1/go.mod h1:AlAJdEuU3xjBJ6WYzI6G5RwkJFqO0xrzst9+q/r6Alk=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

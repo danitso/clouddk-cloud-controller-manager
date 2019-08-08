@@ -27,6 +27,8 @@ func newZones(c *CloudConfiguration) cloudprovider.Zones {
 func (z Zones) GetZone(ctx context.Context) (cloudprovider.Zone, error) {
 	hostname, err := os.Hostname()
 
+	debugCloudAction(rtLoadBalancers, "Retrieving zone for node instance (name: %s)", hostname)
+
 	if err != nil {
 		return cloudprovider.Zone{}, err
 	}
@@ -37,6 +39,8 @@ func (z Zones) GetZone(ctx context.Context) (cloudprovider.Zone, error) {
 // GetZoneByProviderID returns the Zone containing the current zone and locality region of the node specified by providerID.
 // This method is particularly used in the context of external cloud providers where node initialization must be done outside the kubelets.
 func (z Zones) GetZoneByProviderID(ctx context.Context, providerID string) (cloudprovider.Zone, error) {
+	debugCloudAction(rtLoadBalancers, "Retrieving zone for node instance (id: %s)", providerID)
+
 	zone := cloudprovider.Zone{}
 
 	server := CloudServer{
@@ -58,6 +62,8 @@ func (z Zones) GetZoneByProviderID(ctx context.Context, providerID string) (clou
 // GetZoneByNodeName returns the Zone containing the current zone and locality region of the node specified by node name.
 // This method is particularly used in the context of external cloud providers where node initialization must be done outside the kubelets.
 func (z Zones) GetZoneByNodeName(ctx context.Context, nodeName types.NodeName) (cloudprovider.Zone, error) {
+	debugCloudAction(rtLoadBalancers, "Retrieving zone for node instance (name: %s)", string(nodeName))
+
 	zone := cloudprovider.Zone{}
 
 	server := CloudServer{

@@ -52,12 +52,12 @@ spec:
       - key: node.cloudprovider.kubernetes.io/uninitialized
         value: "true"
         effect: NoSchedule
-        operator: "Equal"
+        operator: Equal
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
-        operator: "Exists"
+        operator: Exists
       - key: node.kubernetes.io/not-ready
         effect: NoSchedule
-        operator: "Exists"
+        operator: Exists
       nodeSelector:
         node-role.kubernetes.io/master: ""

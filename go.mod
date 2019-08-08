@@ -26,7 +26,7 @@ replace (
 )
 
 require (
-	github.com/danitso/terraform-provider-clouddk v0.0.0-20190804145242-fe93efdacfff
+	github.com/danitso/terraform-provider-clouddk v0.0.0-20190808173721-74a6a7a612d1
 	github.com/pkg/sftp v1.10.0
 	github.com/spf13/pflag v1.0.3
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4

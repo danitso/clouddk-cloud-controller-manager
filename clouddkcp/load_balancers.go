@@ -73,6 +73,10 @@ type LoadBalancers struct {
 
 // createLoadBalancer creates a new load balancer.
 func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Service) (CloudServer, error) {
+	loadBalancerName := getLoadBalancerNameByService(service)
+
+	debugCloudAction(rtLoadBalancers, "Creating new load balancer (name: %s)", loadBalancerName)
+
 	server := CloudServer{
 		CloudConfiguration: c,
 	}
@@ -80,34 +84,52 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 	connectionLimit, err := parseIntAnnotation(service.Annotations[annoLoadBalancerConnectionLimit], 1000, 1, 20000)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerConnectionLimit, loadBalancerName)
+
 		return server, err
 	}
+
+	debugCloudAction(rtLoadBalancers, "Creating cloud server for load balancer (name: %s)", loadBalancerName)
 
 	packageID := getPackageIDByConnectionLimit(connectionLimit)
 	err = server.Create("dk1", packageID, hostname)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to create cloud server for load balancer (name: %s)", loadBalancerName)
+
 		return server, err
 	}
 
+	debugCloudAction(rtLoadBalancers, "Successfully created cloud server for load balancer (name: %s)", loadBalancerName)
+
 	// Install an LTS version of HAProxy on the server.
+	debugCloudAction(rtLoadBalancers, "Establishing SSH connection to load balancer (name: %s)", loadBalancerName)
+
 	sshClient, err := server.SSH()
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to establish SSH connection to load balancer (name: %s)", loadBalancerName)
+
 		return server, err
 	}
 
 	defer sshClient.Close()
 
+	debugCloudAction(rtLoadBalancers, "Creating new SSH session for load balancer (name: %s)", loadBalancerName)
+
 	sshSession, err := sshClient.NewSession()
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to create new SSH session for load balancer (name: %s)", loadBalancerName)
+
 		server.Destroy()
 
 		return server, err
 	}
 
 	defer sshSession.Close()
+
+	debugCloudAction(rtLoadBalancers, "Provisioning cloud server for load balancer (name: %s)", loadBalancerName)
 
 	_, err = sshSession.CombinedOutput(
 		"export DEBIAN_FRONTEND=noninteractive && " +
@@ -124,6 +146,8 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 	)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to provision cloud server for load balancer (name: %s)", loadBalancerName)
+
 		server.Destroy()
 
 		return server, err
@@ -235,7 +259,10 @@ func sanitizeClusterName(clusterName string) string {
 // Implementations must treat the *v1.Service parameter as read-only and not modify it.
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
 func (l LoadBalancers) GetLoadBalancer(ctx context.Context, clusterName string, service *v1.Service) (status *v1.LoadBalancerStatus, exists bool, err error) {
-	hostname := fmt.Sprintf(hostnameFormat, sanitizeClusterName(clusterName), getLoadBalancerNameByService(service))
+	loadBalancerName := getLoadBalancerNameByService(service)
+	hostname := fmt.Sprintf(hostnameFormat, sanitizeClusterName(clusterName), loadBalancerName)
+
+	debugCloudAction(rtLoadBalancers, "Determining if load balancer exists (name: %s)", loadBalancerName)
 
 	server := CloudServer{
 		CloudConfiguration: l.config,
@@ -270,7 +297,10 @@ func (l LoadBalancers) GetLoadBalancerName(ctx context.Context, clusterName stri
 // Implementations must treat the *v1.Service and *v1.Node parameters as read-only and not modify them.
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
 func (l LoadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) (*v1.LoadBalancerStatus, error) {
-	hostname := fmt.Sprintf(hostnameFormat, sanitizeClusterName(clusterName), getLoadBalancerNameByService(service))
+	loadBalancerName := getLoadBalancerNameByService(service)
+	hostname := fmt.Sprintf(hostnameFormat, sanitizeClusterName(clusterName), loadBalancerName)
+
+	debugCloudAction(rtLoadBalancers, "Ensuring that load balancer exists (name: %s)", loadBalancerName)
 
 	server := CloudServer{
 		CloudConfiguration: l.config,
@@ -309,7 +339,10 @@ func (l LoadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName strin
 // Implementations must treat the *v1.Service and *v1.Node parameters as read-only and not modify them.
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager.
 func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) error {
-	hostname := fmt.Sprintf(hostnameFormat, sanitizeClusterName(clusterName), getLoadBalancerNameByService(service))
+	loadBalancerName := getLoadBalancerNameByService(service)
+	hostname := fmt.Sprintf(hostnameFormat, sanitizeClusterName(clusterName), loadBalancerName)
+
+	debugCloudAction(rtLoadBalancers, "Updating load balancer (name: %s)", loadBalancerName)
 
 	server := CloudServer{
 		CloudConfiguration: l.config,
@@ -318,6 +351,8 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	_, err := server.InitializeByHostname(hostname)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to initialize cloud server instance for load balancer (name: %s)", loadBalancerName)
+
 		return err
 	}
 
@@ -329,18 +364,24 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerAlgorithm)
+
 		return err
 	}
 
 	clientTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerClientTimeout], 30, 1, 86400)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerClientTimeout)
+
 		return err
 	}
 
 	connectionLimit, err := parseIntAnnotation(service.Annotations[annoLoadBalancerConnectionLimit], 1000, 1, 20000)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerConnectionLimit)
+
 		return err
 	}
 
@@ -348,34 +389,46 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	healthCheckInterval, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckInterval], 3, 3, 300)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerHealthCheckInterval)
+
 		return err
 	}
 
 	healthCheckThresholdHealthy, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckThresholdHealthy], 5, 2, 10)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerHealthCheckThresholdHealthy)
+
 		return err
 	}
 
 	healthCheckThresholdUnhealthy, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckThresholdUnhealthy], 3, 2, 10)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", healthCheckThresholdUnhealthy)
+
 		return err
 	}
 
 	healthCheckTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckTimeout], 5, 3, 300)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", healthCheckTimeout)
+
 		return err
 	}
 
 	serverTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerServerTimeout], 60, 1, 86400)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerServerTimeout)
+
 		return err
 	}
 
 	// Generate a new HAProxy configuration file.
+	debugCloudAction(rtLoadBalancers, "Generating new configuration file for load balancer (name: %s)", annoLoadBalancerServerTimeout)
+
 	processorCount := getProcessorCountByConnectionLimit(connectionLimit)
 	configFileContents := strings.TrimSpace(fmt.Sprintf(
 		`
@@ -474,44 +527,66 @@ listen %d
 	}
 
 	// Upload the new configuration file to the server using SFTP.
+	debugCloudAction(rtLoadBalancers, "Establishing SSH connection to load balancer (name: %s)", loadBalancerName)
+
 	sshClient, err := server.SSH()
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to establish SSH connection to load balancer (name: %s)", loadBalancerName)
+
 		return err
 	}
 
 	defer sshClient.Close()
 
+	debugCloudAction(rtLoadBalancers, "Creating new SFTP client for load balancer (name: %s)", loadBalancerName)
+
 	sftp, err := sftp.NewClient(sshClient)
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to create new SFTP client for load balancer (name: %s)", loadBalancerName)
+
 		return err
 	}
 
 	defer sftp.Close()
 
+	debugCloudAction(rtLoadBalancers, "Uploading new configuration file to load balancer (name: %s)", loadBalancerName)
+
 	cfgFile, err := sftp.Create("/etc/haproxy/haproxy.cfg")
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to upload new configuration file to load balancer (name: %s)", loadBalancerName)
+
 		return err
 	}
 
 	_, err = cfgFile.Write(bytes.NewBufferString(configFileContents).Bytes())
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to upload new configuration file to load balancer (name: %s)", loadBalancerName)
+
 		return err
 	}
 
 	// Reload the HAProxy service now that the configuration file has been updated.
+	debugCloudAction(rtLoadBalancers, "Creating new SSH session for load balancer (name: %s)", loadBalancerName)
+
 	sshSession, err := sshClient.NewSession()
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to create new SSH session for load balancer (name: %s)", loadBalancerName)
+
 		return err
 	}
 
 	defer sshSession.Close()
 
 	_, err = sshSession.CombinedOutput("systemctl reload haproxy")
+
+	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to load the new configuration file for load balancer (name: %s)", loadBalancerName)
+	}
 
 	return err
 }
@@ -521,7 +596,10 @@ listen %d
 // Implementations must treat the *v1.Service parameter as read-only and not modify it.
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager.
 func (l LoadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterName string, service *v1.Service) error {
-	hostname := fmt.Sprintf(hostnameFormat, sanitizeClusterName(clusterName), getLoadBalancerNameByService(service))
+	loadBalancerName := getLoadBalancerNameByService(service)
+	hostname := fmt.Sprintf(hostnameFormat, sanitizeClusterName(clusterName), loadBalancerName)
+
+	debugCloudAction(rtLoadBalancers, "Ensuring that load balancer has been deleted (name: %s)", loadBalancerName)
 
 	server := CloudServer{
 		CloudConfiguration: l.config,
@@ -534,12 +612,16 @@ func (l LoadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterNam
 			return nil
 		}
 
+		debugCloudAction(rtLoadBalancers, "Failed to ensure that load balancer has been deleted (name: %s)", loadBalancerName)
+
 		return err
 	}
 
 	err = server.Destroy()
 
 	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to destroy cloud server for load balancer (name: %s)", loadBalancerName)
+
 		return err
 	}
 
