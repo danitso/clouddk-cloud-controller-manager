@@ -167,6 +167,10 @@ func (s CloudServer) InitializeByHostname(hostname string) (notFound bool, e err
 		return false, errors.New("The server has already been initialized")
 	}
 
+	if hostname == "" {
+		return false, errors.New("Cannot retrieve a server without a hostname")
+	}
+
 	res, resErr := clouddk.DoClientRequest(
 		s.CloudConfiguration.ClientSettings,
 		"GET",
@@ -202,7 +206,11 @@ func (s CloudServer) InitializeByHostname(hostname string) (notFound bool, e err
 // InitializeByID initializes a CloudServer based on an identifier.
 func (s CloudServer) InitializeByID(id string) (notFound bool, e error) {
 	if s.Information.Identifier != "" {
-		return true, errors.New("The server has already been initialized")
+		return false, errors.New("The server has already been initialized")
+	}
+
+	if id == "" {
+		return false, errors.New("Cannot retrieve a server without an identifier")
 	}
 
 	res, resErr := clouddk.DoClientRequest(

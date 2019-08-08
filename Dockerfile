@@ -18,6 +18,10 @@ LABEL Maintainer="Danitso <info@danitso.com>"
 LABEL Vendor="Danitso"
 #==================================================== INFORMATION ====================================================#
 ENV LANG="C.UTF-8"
+ENV REQUIRED_PACKAGES="ca-certificates"
+
+# Install the required packages.
+RUN apk add --no-cache ${REQUIRED_PACKAGES}
 
 # Copy the binary from the build stage.
 COPY --from=build /build/bin/clouddk-cloud-controller-manager /usr/bin/clouddk-cloud-controller-manager
