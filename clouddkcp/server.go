@@ -47,9 +47,9 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	jsonBody := reqBody.String()
 	reqBody = bytes.NewBufferString(jsonBody)
 
-	debugCloudAction(rtServers, "Payload: %s", jsonBody)
+	debugCloudAction(rtServers, "Creating new cloud server - Payload: %s", jsonBody)
 
-	res, err := clouddk.DoClientRequest(s.CloudConfiguration.ClientSettings, "POST", "cloudservers", reqBody, []int{200}, 60, 10)
+	res, err := clouddk.DoClientRequest(s.CloudConfiguration.ClientSettings, "POST", "cloudservers", reqBody, []int{200}, 1, 1)
 
 	if err != nil {
 		return err
@@ -61,6 +61,11 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	if err != nil {
 		return err
 	}
+
+	resBody := new(bytes.Buffer)
+	err = json.NewEncoder(resBody).Encode(s.Information)
+
+	debugCloudAction(rtServers, "Processing new cloud server - Payload: %s", resBody.String())
 
 	if len(s.Information.NetworkInterfaces) == 0 {
 		err = fmt.Errorf("No network interfaces were created for cloud server '%s'", s.Information.Identifier)
