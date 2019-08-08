@@ -133,7 +133,7 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 
 	debugCloudAction(rtLoadBalancers, "Provisioning cloud server for load balancer (name: %s)", loadBalancerName)
 
-	_, err = sshSession.CombinedOutput(
+	output, err := sshSession.CombinedOutput(
 		"export DEBIAN_FRONTEND=noninteractive && " +
 			"apt-get -qq update && " +
 			"apt-get -qq install -y software-properties-common && " +
@@ -148,7 +148,7 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 	)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to provision cloud server for load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to provision cloud server for load balancer (name: %s) - Output: %s - Error: %s", loadBalancerName, string(output), err.Error())
 
 		server.Destroy()
 
@@ -535,12 +535,13 @@ defaults
 			`
 listen %d
 	bind 0.0.0.0:%d
+
+	option tcp-check
 			`,
 			port.Port,
 			port.Port,
 		))
 
-		configFileContents = configFileContents + "\toption tcp-check\n"
 		configFileContents = configFileContents + "\n\n"
 
 		for _, node := range nodes {
