@@ -26,7 +26,7 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 		return errors.New("The server has already been initialized")
 	}
 
-	rootPassword := s.GetRandomPassword(64)
+	rootPassword := "p" + s.GetRandomPassword(63)
 
 	body := clouddk.ServerCreateBody{
 		Hostname:            hostname,
@@ -172,7 +172,7 @@ func (s *CloudServer) Destroy() error {
 func (s *CloudServer) GetRandomPassword(length int) string {
 	var b strings.Builder
 
-	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖabcdefghijklmnopqrstuvwxyzåäö0123456789")
+	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
 
 	for i := 0; i < length; i++ {
 		b.WriteRune(chars[rand.Intn(len(chars))])

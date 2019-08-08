@@ -3,7 +3,9 @@ package clouddkcp
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"fmt"
+	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -63,7 +65,7 @@ const (
 	annoLoadBalancerServerTimeout = "kubernetes.cloud.dk/load-balancer-server-timeout"
 
 	// fmtLoadBalancerHostname specifies the format for load balancer hostnames.
-	fmtLoadBalancerHostname = "k8s-lb-%s"
+	fmtLoadBalancerHostname = "k8s-load-balancer-%s"
 )
 
 // LoadBalancers implements the interface cloudprovider.LoadBalancer.
@@ -154,6 +156,16 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 	}
 
 	return server, nil
+}
+
+// getLoadBalancerHostname retrieves the hostname for a load balancer.
+func getLoadBalancerHostname(clusterName string, loadBalancerName string) string {
+	loadBalancerHash := md5.New()
+
+	io.WriteString(loadBalancerHash, clusterName)
+	io.WriteString(loadBalancerHash, loadBalancerName)
+
+	return fmt.Sprintf(fmtLoadBalancerHostname, fmt.Sprintf("%x", loadBalancerHash.Sum(nil)))
 }
 
 // getLoadBalancerNameByService retrieves the default load balancer name for a service.
@@ -260,7 +272,7 @@ func sanitizeClusterName(clusterName string) string {
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
 func (l LoadBalancers) GetLoadBalancer(ctx context.Context, clusterName string, service *v1.Service) (status *v1.LoadBalancerStatus, exists bool, err error) {
 	loadBalancerName := getLoadBalancerNameByService(service)
-	hostname := fmt.Sprintf(fmtLoadBalancerHostname, loadBalancerName)
+	hostname := getLoadBalancerHostname(clusterName, loadBalancerName)
 
 	debugCloudAction(rtLoadBalancers, "Determining if load balancer exists (name: %s)", loadBalancerName)
 
@@ -308,7 +320,7 @@ func (l LoadBalancers) GetLoadBalancerName(ctx context.Context, clusterName stri
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager
 func (l LoadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) (*v1.LoadBalancerStatus, error) {
 	loadBalancerName := getLoadBalancerNameByService(service)
-	hostname := fmt.Sprintf(fmtLoadBalancerHostname, loadBalancerName)
+	hostname := getLoadBalancerHostname(clusterName, loadBalancerName)
 
 	debugCloudAction(rtLoadBalancers, "Ensuring that load balancer exists (name: %s)", loadBalancerName)
 
@@ -360,7 +372,7 @@ func (l LoadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName strin
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager.
 func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) error {
 	loadBalancerName := getLoadBalancerNameByService(service)
-	hostname := fmt.Sprintf(fmtLoadBalancerHostname, loadBalancerName)
+	hostname := getLoadBalancerHostname(clusterName, loadBalancerName)
 
 	debugCloudAction(rtLoadBalancers, "Updating load balancer (name: %s)", loadBalancerName)
 
@@ -623,7 +635,7 @@ listen %d
 // Parameter 'clusterName' is the name of the cluster as presented to kube-controller-manager.
 func (l LoadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterName string, service *v1.Service) error {
 	loadBalancerName := getLoadBalancerNameByService(service)
-	hostname := fmt.Sprintf(fmtLoadBalancerHostname, loadBalancerName)
+	hostname := getLoadBalancerHostname(clusterName, loadBalancerName)
 
 	debugCloudAction(rtLoadBalancers, "Ensuring that load balancer has been deleted (name: %s)", loadBalancerName)
 
