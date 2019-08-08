@@ -216,7 +216,7 @@ func (s CloudServer) InitializeByID(id string) (notFound bool, e error) {
 		return false, errors.New("The server has already been initialized")
 	}
 
-	id = strings.ReplaceAll(id, "clouddk://", "")
+	id = strings.TrimPrefix(id, "clouddk://")
 
 	if id == "" {
 		return false, errors.New("Cannot retrieve a server without an identifier")

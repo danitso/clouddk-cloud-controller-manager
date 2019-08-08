@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	v1 "k8s.io/api/core/v1"
@@ -46,6 +47,9 @@ func (i Instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1
 			nodeAddresses = append(nodeAddresses, v1.NodeAddress{
 				Type:    "ExternalIP",
 				Address: i.Address,
+			}, v1.NodeAddress{
+				Type:    "InternalIP",
+				Address: i.Address,
 			})
 		}
 	}
@@ -75,6 +79,9 @@ func (i Instances) NodeAddressesByProviderID(ctx context.Context, providerID str
 			nodeAddresses = append(nodeAddresses, v1.NodeAddress{
 				Type:    "ExternalIP",
 				Address: i.Address,
+			}, v1.NodeAddress{
+				Type:    "InternalIP",
+				Address: i.Address,
 			})
 		}
 	}
@@ -90,9 +97,19 @@ func (i Instances) InstanceID(ctx context.Context, nodeName types.NodeName) (str
 		CloudConfiguration: i.config,
 	}
 
-	_, err := server.InitializeByHostname(string(nodeName))
+	notFound, err := server.InitializeByHostname(string(nodeName))
 
-	return server.Information.Identifier, err
+	if err != nil {
+		if notFound {
+			return "", cloudprovider.InstanceNotFound
+		}
+
+		return "", err
+	}
+
+	log.Printf("[DEBUG] Node '%s' has provider id '%s'", string(nodeName), server.Information.Identifier)
+
+	return server.Information.Identifier, nil
 }
 
 // InstanceType returns the type of the specified instance.
@@ -125,9 +142,9 @@ func (i Instances) AddSSHKeyToAllInstances(ctx context.Context, user string, key
 // CurrentNodeName returns the name of the node we are currently running on.
 // On most clouds (e.g. GCE) this is the hostname, so we provide the hostname.
 func (i Instances) CurrentNodeName(ctx context.Context, hostname string) (types.NodeName, error) {
-	hostname, hostnameErr := os.Hostname()
+	hostname, err := os.Hostname()
 
-	return types.NodeName(hostname), hostnameErr
+	return types.NodeName(hostname), err
 }
 
 // InstanceExistsByProviderID returns true if the instance for the given provider exists.
@@ -140,7 +157,7 @@ func (i Instances) InstanceExistsByProviderID(ctx context.Context, providerID st
 
 	notFound, err := server.InitializeByID(providerID)
 
-	return (err == nil || notFound == false), nil
+	return (err == nil || notFound == false), err
 }
 
 // InstanceShutdownByProviderID returns true if the instance is shutdown in cloudprovider.
