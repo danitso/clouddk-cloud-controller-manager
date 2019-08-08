@@ -42,7 +42,7 @@ spec:
         - --leader-elect=true
         - --use-service-account-credentials
         - --allocate-node-cidrs=true
-        - --configure-cloud-routes=true
+        - --configure-cloud-routes=false
         - --cluster-cidr=10.32.0.0/12
         envFrom:
         - secretRef:
@@ -51,7 +51,9 @@ spec:
       - key: node.cloudprovider.kubernetes.io/uninitialized
         value: "true"
         effect: NoSchedule
+        operator: "Equal"
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
+        operator: "Exists"
       nodeSelector:
         node-role.kubernetes.io/master: ""
