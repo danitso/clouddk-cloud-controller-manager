@@ -76,3 +76,81 @@ Follow these simple steps in order to install the controller:
     ```bash
     kubectl get pods -l k8s-app=clouddk-cloud-controller-manager -n kube-system
     ```
+
+## Features
+
+### LoadBalancer
+
+The `clouddk-cloud-controller-manager` plugin adds support for Load Balancers based on HAProxy. These can be created just like regular load balancers. However, the following annotations can be used in order to modify the default configuration:
+
+#### kubernetes.cloud.dk/load-balancer-algorithm
+
+The load balancing algorithm.
+
+**Options:** `leastconn`, `roundrobin` and `source`
+
+**Default:** `roundrobin`
+
+#### kubernetes.cloud.dk/load-balancer-client-timeout
+
+The number of seconds the Load Balancer will allow a client to idle for
+
+**Range:** 1-86400
+
+**Default:** 30
+
+#### kubernetes.cloud.dk/load-balancer-connection-limit
+
+The connection limit.
+
+**Range:** 1-20000
+
+**Default:** 1000
+
+#### kubernetes.cloud.dk/load-balancer-enable-proxy-protocol
+
+Whether to enable the PROXY protocol.
+
+**Options:** `true` and `false`
+
+**Default:** `false`
+
+#### kubernetes.cloud.dk/load-balancer-health-check-interval
+
+The number of seconds between between two consecutive health checks.
+
+**Range:** 3-300
+
+**Default:** 3
+
+#### kubernetes.cloud.dk/load-balancer-health-check-threshold-healthy
+
+The number of times a health check must pass for a backend to be marked "healthy" for the given service and be re-added to the pool.
+
+**Range:** 2-10
+
+**Default:** 5
+
+#### kubernetes.cloud.dk/load-balancer-health-check-threshold-unhealthy
+
+The number of times a health check must fail for a backend to be marked "unhealthy" and be removed from the pool for the given service.
+
+**Range:** 2-10
+
+**Default:** 3
+
+#### kubernetes.cloud.dk/load-balancer-health-check-timeout
+
+The number of seconds the Load Balancer will wait for a response until marking a health check as failed.
+
+**Range:** 3-300
+
+**Default:** 5
+
+#### kubernetes.cloud.dk/load-balancer-server-timeout
+
+The number of seconds the Load Balancer will allow a server to idle for.
+
+**Range:** 1-86400
+
+**Default:** 60
