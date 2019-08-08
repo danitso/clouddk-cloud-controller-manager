@@ -62,7 +62,9 @@ func (i Instances) NodeAddresses(ctx context.Context, name types.NodeName) ([]v1
 // The ProviderID is a unique identifier of the node.
 // This will not be called from the node whose nodeaddresses are being queried. i.e. local metadata services cannot be used in this method to obtain nodeaddresses.
 func (i Instances) NodeAddressesByProviderID(ctx context.Context, providerID string) ([]v1.NodeAddress, error) {
-	debugCloudAction(rtInstances, "Retrieving node addresses (id: %s)", providerID)
+	trimmedProviderID := trimProviderID(providerID)
+
+	debugCloudAction(rtInstances, "Retrieving node addresses (id: %s)", trimmedProviderID)
 
 	nodeAddresses := make([]v1.NodeAddress, 0)
 
@@ -70,7 +72,7 @@ func (i Instances) NodeAddressesByProviderID(ctx context.Context, providerID str
 		CloudConfiguration: i.config,
 	}
 
-	_, err := server.InitializeByID(providerID)
+	_, err := server.InitializeByID(trimmedProviderID)
 
 	if err != nil {
 		return nodeAddresses, err
@@ -131,13 +133,15 @@ func (i Instances) InstanceType(ctx context.Context, name types.NodeName) (strin
 
 // InstanceTypeByProviderID returns the type of the specified instance.
 func (i Instances) InstanceTypeByProviderID(ctx context.Context, providerID string) (string, error) {
-	debugCloudAction(rtInstances, "Retrieving instance type for node (id: %s)", providerID)
+	trimmedProviderID := trimProviderID(providerID)
+
+	debugCloudAction(rtInstances, "Retrieving instance type for node (id: %s)", trimmedProviderID)
 
 	server := CloudServer{
 		CloudConfiguration: i.config,
 	}
 
-	_, err := server.InitializeByID(providerID)
+	_, err := server.InitializeByID(trimmedProviderID)
 
 	return server.Information.Package.Identifier, err
 }
@@ -161,19 +165,21 @@ func (i Instances) CurrentNodeName(ctx context.Context, hostname string) (types.
 // If false is returned with no error, the instance will be immediately deleted by the cloud controller manager.
 // This method should still return true for instances that exist but are stopped/sleeping.
 func (i Instances) InstanceExistsByProviderID(ctx context.Context, providerID string) (bool, error) {
-	debugCloudAction(rtInstances, "Determining if node instance exists (id: %s)", providerID)
+	trimmedProviderID := trimProviderID(providerID)
+
+	debugCloudAction(rtInstances, "Determining if node instance exists (id: %s)", trimmedProviderID)
 
 	server := CloudServer{
 		CloudConfiguration: i.config,
 	}
 
-	notFound, err := server.InitializeByID(providerID)
+	notFound, err := server.InitializeByID(trimmedProviderID)
 	exists := err == nil || notFound == false
 
 	if exists {
-		debugCloudAction(rtInstances, "Node instance exists (id: %s)", providerID)
+		debugCloudAction(rtInstances, "Node instance exists (id: %s)", trimmedProviderID)
 	} else {
-		debugCloudAction(rtInstances, "Node instance does not exist (id: %s)", providerID)
+		debugCloudAction(rtInstances, "Node instance does not exist (id: %s)", trimmedProviderID)
 	}
 
 	return exists, err
@@ -181,16 +187,18 @@ func (i Instances) InstanceExistsByProviderID(ctx context.Context, providerID st
 
 // InstanceShutdownByProviderID returns true if the instance is shutdown in cloudprovider.
 func (i Instances) InstanceShutdownByProviderID(ctx context.Context, providerID string) (bool, error) {
-	debugCloudAction(rtInstances, "Determining if node instance is powered off (id: %s)", providerID)
+	trimmedProviderID := trimProviderID(providerID)
+
+	debugCloudAction(rtInstances, "Determining if node instance is powered off (id: %s)", trimmedProviderID)
 
 	server := CloudServer{
 		CloudConfiguration: i.config,
 	}
 
-	_, err := server.InitializeByID(providerID)
+	_, err := server.InitializeByID(trimmedProviderID)
 
 	if err != nil {
-		debugCloudAction(rtInstances, "Node instance is not powered off (id: %s)", providerID)
+		debugCloudAction(rtInstances, "Node instance is not powered off (id: %s)", trimmedProviderID)
 
 		return false, err
 	}
@@ -206,7 +214,7 @@ func (i Instances) InstanceShutdownByProviderID(ctx context.Context, providerID 
 	)
 
 	if err != nil {
-		debugCloudAction(rtInstances, "Node instance is not powered off (id: %s)", providerID)
+		debugCloudAction(rtInstances, "Node instance is not powered off (id: %s)", trimmedProviderID)
 
 		return false, err
 	}
@@ -215,7 +223,7 @@ func (i Instances) InstanceShutdownByProviderID(ctx context.Context, providerID 
 	err = json.NewDecoder(res.Body).Decode(&logsList)
 
 	if err != nil {
-		debugCloudAction(rtInstances, "Node instance is not powered off (id: %s)", providerID)
+		debugCloudAction(rtInstances, "Node instance is not powered off (id: %s)", trimmedProviderID)
 
 		return false, err
 	}
@@ -229,9 +237,9 @@ func (i Instances) InstanceShutdownByProviderID(ctx context.Context, providerID 
 	poweredOff := (server.Information.Booted == false)
 
 	if poweredOff {
-		debugCloudAction(rtInstances, "Node instance is powered off (id: %s)", providerID)
+		debugCloudAction(rtInstances, "Node instance is powered off (id: %s)", trimmedProviderID)
 	} else {
-		debugCloudAction(rtInstances, "Node instance is not powered off (id: %s)", providerID)
+		debugCloudAction(rtInstances, "Node instance is not powered off (id: %s)", trimmedProviderID)
 	}
 
 	return poweredOff, nil

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"net/url"
 	"strings"
@@ -44,6 +43,11 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	if err != nil {
 		return err
 	}
+
+	jsonBody := reqBody.String()
+	reqBody = bytes.NewBufferString(jsonBody)
+
+	debugCloudAction(rtServers, "Payload: %s", jsonBody)
 
 	res, err := clouddk.DoClientRequest(s.CloudConfiguration.ClientSettings, "POST", "cloudservers", reqBody, []int{200}, 60, 10)
 
@@ -204,12 +208,8 @@ func (s *CloudServer) InitializeByHostname(hostname string) (notFound bool, e er
 	}
 
 	for _, v := range servers {
-		log.Printf("[DEBUG] Matching hostname '%s' to '%s'", v.Hostname, hostname)
-
 		if v.Hostname == hostname {
 			s.Information = v
-
-			log.Printf("[DEBUG] Match found for hostname '%s' (id: %s)", hostname, s.Information.Identifier)
 
 			return false, nil
 		}
@@ -223,8 +223,6 @@ func (s *CloudServer) InitializeByID(id string) (notFound bool, e error) {
 	if s.Information.Identifier != "" {
 		return false, errors.New("The server has already been initialized")
 	}
-
-	id = strings.TrimPrefix(id, "clouddk://")
 
 	if id == "" {
 		return false, errors.New("Cannot retrieve a server without an identifier")
