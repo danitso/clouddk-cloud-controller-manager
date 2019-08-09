@@ -26,6 +26,8 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 		return errors.New("The server has already been initialized")
 	}
 
+	debugCloudAction(rtServers, "Creating cloud server (hostname: %s)", hostname)
+
 	rootPassword := "p" + s.GetRandomPassword(63)
 
 	body := clouddk.ServerCreateBody{
@@ -44,14 +46,11 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 		return err
 	}
 
-	jsonBody := reqBody.String()
-	reqBody = bytes.NewBufferString(jsonBody)
-
-	debugCloudAction(rtServers, "Creating new cloud server - Payload: %s", jsonBody)
-
 	res, err := clouddk.DoClientRequest(s.CloudConfiguration.ClientSettings, "POST", "cloudservers", reqBody, []int{200}, 1, 1)
 
 	if err != nil {
+		debugCloudAction(rtServers, "Failed to create cloud server (hostname: %s)", hostname)
+
 		return err
 	}
 
@@ -62,12 +61,9 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 		return err
 	}
 
-	resBody := new(bytes.Buffer)
-	err = json.NewEncoder(resBody).Encode(s.Information)
-
-	debugCloudAction(rtServers, "Processing new cloud server - Payload: %s", resBody.String())
-
 	if len(s.Information.NetworkInterfaces) == 0 {
+		debugCloudAction(rtServers, "Failed to create cloud server due to lack of network interfaces (hostname: %s)", hostname)
+
 		err = fmt.Errorf("No network interfaces were created for cloud server '%s'", s.Information.Identifier)
 
 		s.Destroy()
@@ -76,6 +72,8 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	}
 
 	// Wait for the server to become ready by testing SSH connectivity.
+	debugCloudAction(rtServers, "Waiting for cloud server to accept SSH connections (hostname: %s)", hostname)
+
 	var sshClient *ssh.Client
 
 	sshConfig := &ssh.ClientConfig{
@@ -108,6 +106,8 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	}
 
 	if err != nil {
+		debugCloudAction(rtServers, "Failed to create cloud server due to SSH timeout (hostname: %s)", hostname)
+
 		s.Destroy()
 
 		return err
@@ -121,6 +121,8 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	sshSession, err := sshClient.NewSession()
 
 	if err != nil {
+		debugCloudAction(rtServers, "Failed to create cloud server due to SSH errors (hostname: %s)", hostname)
+
 		s.Destroy()
 
 		return err
@@ -135,6 +137,8 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	)
 
 	if err != nil {
+		debugCloudAction(rtServers, "Failed to create cloud server due to bootstrap errors (hostname: %s)", hostname)
+
 		s.Destroy()
 
 		return err
@@ -149,6 +153,8 @@ func (s *CloudServer) Destroy() error {
 		return errors.New("The server has not been initialized")
 	}
 
+	debugCloudAction(rtServers, "Destroying cloud server (hostname: %s)", s.Information.Hostname)
+
 	_, err := clouddk.DoClientRequest(
 		s.CloudConfiguration.ClientSettings,
 		"DELETE",
@@ -160,6 +166,8 @@ func (s *CloudServer) Destroy() error {
 	)
 
 	if err != nil {
+		debugCloudAction(rtServers, "Failed to destroy cloud server (hostname: %s)", s.Information.Hostname)
+
 		return err
 	}
 

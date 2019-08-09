@@ -9,9 +9,9 @@ External cloud providers were introduced as an _Alpha_ feature in Kubernetes 1.6
 `clouddk-cloud-controller-manager` is one such provider and is designed to work with Kubernetes clusters running on [Cloud.dk](https://cloud.dk). It enables these clusters to retrieve metadata for nodes and create services of type `LoadBalancer`.
 
 ## Preparation
-In order to enable support for the controller, a flag must be set on the `kube-controller-manager` component.
+In order to enable support for the controller, a flag must be set on the `kubelet` component.
 
-In case the cluster was deployed with `kubeadm`, you must edit `/etc/kubernetes/manifests/kube-controller-manager.yaml` and add `--cloud-provider external` to the command section.
+In case the cluster was deployed with `kubeadm`, simply edit `/etc/default/kubelet` and add `--cloud-provider=external` to `KUBELET_EXTRA_ARGS`.
 
 Alternatively, you can add the following fragment to a `kubeadm` configuration file:
 
@@ -24,7 +24,7 @@ nodeRegistration:
 ## Installation
 Follow these simple steps in order to install the controller:
 
-1. Ensure that `kubectl` is configured to reach your cluster
+1. Ensure that `kubectl` is configured to reach the cluster
 
 1. Retrieve the API key from [https://my.cloud.dk/account/api-key](https://my.cloud.dk/account/api-key) and encode it
 

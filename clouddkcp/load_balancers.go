@@ -466,7 +466,7 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	}
 
 	// Generate a new HAProxy configuration file.
-	debugCloudAction(rtLoadBalancers, "Generating new configuration file for load balancer (name: %s)", annoLoadBalancerServerTimeout)
+	debugCloudAction(rtLoadBalancers, "Generating new configuration file for load balancer (name: %s)", loadBalancerName)
 
 	processorCount := getProcessorCountByConnectionLimit(connectionLimit)
 	configFileContents := strings.TrimSpace(fmt.Sprintf(
@@ -652,7 +652,7 @@ func (l LoadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterNam
 			return nil
 		}
 
-		debugCloudAction(rtLoadBalancers, "Failed to ensure that load balancer has been deleted (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to determine if load balancer exists (name: %s)", loadBalancerName)
 
 		return err
 	}
