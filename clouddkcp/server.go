@@ -83,7 +83,7 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	}
 
 	timeDelay := int64(10)
-	timeMax := float64(600)
+	timeMax := float64(300)
 	timeStart := time.Now()
 	timeElapsed := timeStart.Sub(timeStart)
 
@@ -131,7 +131,9 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	defer sshSession.Close()
 
 	_, err = sshSession.CombinedOutput(
-		fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys && ", strings.TrimSpace(s.CloudConfiguration.PublicKey)) +
+		"swapoff -a && " +
+			"sed -i '/ swap / s/^/#/' /etc/fstab && " +
+			fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys && ", strings.TrimSpace(s.CloudConfiguration.PublicKey)) +
 			"sed -i 's/#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && " +
 			"systemctl restart ssh",
 	)
