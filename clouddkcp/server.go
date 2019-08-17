@@ -138,7 +138,8 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 		"swapoff -a && " +
 			"sed -i '/ swap / s/^/#/' /etc/fstab && " +
 			fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys && ", strings.TrimSpace(s.CloudConfiguration.PublicKey)) +
-			"sed -i 's/#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && " +
+			"sed -i 's/us.archive.ubuntu.com/mirrors.dotsrc.org/' /etc/apt/sources.list && " +
+			"sed -i 's/#\\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && " +
 			"systemctl restart ssh",
 	)
 

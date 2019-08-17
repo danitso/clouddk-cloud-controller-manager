@@ -139,6 +139,7 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 
 	output, err := sshSession.CombinedOutput(
 		"export DEBIAN_FRONTEND=noninteractive && " +
+			"while ps aux | grep -q [a]pt; do sleep 1; done && " +
 			"while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 1; done && " +
 			"while fuser /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 1; done && " +
 			"apt-get -qq update && " +
