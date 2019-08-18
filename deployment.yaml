@@ -38,12 +38,12 @@ spec:
       - name: clouddk-cloud-controller-manager
         image: docker.io/danitso/clouddk-cloud-controller-manager:latest
         args:
+        - --allocate-node-cidrs=true
         - --cloud-provider=clouddk
+        - --cluster-cidr=10.32.0.0/12
+        - --configure-cloud-routes=false
         - --leader-elect=true
         - --use-service-account-credentials
-        - --allocate-node-cidrs=true
-        - --configure-cloud-routes=false
-        - --cluster-cidr=10.32.0.0/12
         envFrom:
         - secretRef:
             name: clouddk-cloud-controller-manager-config
