@@ -182,7 +182,10 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	debugCloudAction(rtServers, "Upgrading and configuring the operating system (hostname: %s)", hostname)
 
 	_, err = sshSession.CombinedOutput(
-		"swapoff -a && " +
+		fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys && ", strings.TrimSpace(s.CloudConfiguration.PublicKey)) +
+			"sed -i 's/#\\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && " +
+			"systemctl restart ssh && " +
+			"swapoff -a && " +
 			"sed -i '/ swap / s/^/#/' /etc/fstab && " +
 			"sed -i 's/us.archive.ubuntu.com/mirrors.dotsrc.org/' /etc/apt/sources.list && " +
 			"export DEBIAN_FRONTEND=noninteractive && " +
@@ -192,10 +195,7 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 			"apt-get -qq update && " +
 			"apt-get -qq upgrade -y && " +
 			"apt-get -qq dist-upgrade -y && " +
-			"apt-get -qq install -y apt-transport-https ca-certificates software-properties-common && " +
-			fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys && ", strings.TrimSpace(s.CloudConfiguration.PublicKey)) +
-			"sed -i 's/#\\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && " +
-			"systemctl restart ssh",
+			"apt-get -qq install -y apt-transport-https ca-certificates software-properties-common",
 	)
 
 	if err != nil {
