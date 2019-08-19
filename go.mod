@@ -26,6 +26,7 @@ replace (
 )
 
 require (
+	github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd
 	github.com/danitso/terraform-provider-clouddk v0.0.0-20190808173721-74a6a7a612d1
 	github.com/pkg/sftp v1.10.0
 	github.com/spf13/pflag v1.0.3

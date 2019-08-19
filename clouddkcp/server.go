@@ -11,11 +11,27 @@ import (
 	"fmt"
 	"math/rand"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/MakeNowJust/heredoc"
 	"github.com/danitso/terraform-provider-clouddk/clouddk"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
+)
+
+const (
+	pathAPTAutoConf = "/etc/apt/apt.conf.d/00auto-conf"
+)
+
+var (
+	aptAutoConf = heredoc.Doc(`
+		Dpkg::Options {
+			"--force-confdef";
+			"--force-confold";
+		}
+	`)
 )
 
 // CloudServer manages a Cloud.dk server.
@@ -121,11 +137,34 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 
 	s.Information.Booted = true
 
+	// Configure the package manager for unattended upgrades.
+	sftpClient, err := s.SFTP(sshClient)
+
+	if err != nil {
+		debugCloudAction(rtServers, "Failed to create cloud server due to SFTP errors (hostname: %s)", hostname)
+
+		s.Destroy()
+
+		return err
+	}
+
+	defer sftpClient.Close()
+
+	err = s.UploadFile(sftpClient, pathAPTAutoConf, bytes.NewBufferString(aptAutoConf))
+
+	if err != nil {
+		debugCloudAction(rtServers, "Failed to create cloud server because file '%s' could not be uploaded (hostname: %s)", pathAPTAutoConf, hostname)
+
+		s.Destroy()
+
+		return err
+	}
+
 	// Configure the server by installing the required software and authorizing the SSH key.
 	sshSession, err := sshClient.NewSession()
 
 	if err != nil {
-		debugCloudAction(rtServers, "Failed to create cloud server due to SSH errors (hostname: %s)", hostname)
+		debugCloudAction(rtServers, "Failed to create cloud server due to SSH session errors (hostname: %s)", hostname)
 
 		s.Destroy()
 
@@ -137,8 +176,16 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	_, err = sshSession.CombinedOutput(
 		"swapoff -a && " +
 			"sed -i '/ swap / s/^/#/' /etc/fstab && " +
-			fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys && ", strings.TrimSpace(s.CloudConfiguration.PublicKey)) +
 			"sed -i 's/us.archive.ubuntu.com/mirrors.dotsrc.org/' /etc/apt/sources.list && " +
+			"export DEBIAN_FRONTEND=noninteractive && " +
+			"while ps aux | grep -q [a]pt; do sleep 1; done && " +
+			"while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 1; done && " +
+			"while fuser /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 1; done && " +
+			"apt-get -qq update && " +
+			"apt-get -qq upgrade -y && " +
+			"apt-get -qq dist-upgrade -y && " +
+			"apt-get -qq install -y apt-transport-https ca-certificates software-properties-common && " +
+			fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys && ", strings.TrimSpace(s.CloudConfiguration.PublicKey)) +
 			"sed -i 's/#\\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && " +
 			"systemctl restart ssh",
 	)
@@ -271,6 +318,29 @@ func (s *CloudServer) InitializeByID(id string) (notFound bool, e error) {
 	return false, nil
 }
 
+// SFTP creates a new SFTP client for a Cloud.dk server.
+func (s *CloudServer) SFTP(sshClient *ssh.Client) (*sftp.Client, error) {
+	var err error
+
+	newSSHClient := sshClient
+
+	if newSSHClient == nil {
+		newSSHClient, err = s.SSH()
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	sftpClient, err := sftp.NewClient(newSSHClient)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return sftpClient, nil
+}
+
 // SSH establishes a new SSH connection to a Cloud.dk server.
 func (s *CloudServer) SSH() (*ssh.Client, error) {
 	if s.Information.Identifier == "" {
@@ -297,4 +367,50 @@ func (s *CloudServer) SSH() (*ssh.Client, error) {
 	}
 
 	return sshClient, nil
+}
+
+// UploadFile uploads a file to the server.
+func (s *CloudServer) UploadFile(sftpClient *sftp.Client, filePath string, fileContents *bytes.Buffer) error {
+	newSFTPClient := sftpClient
+
+	if newSFTPClient == nil {
+		sshClient, err := s.SSH()
+
+		if err != nil {
+			return err
+		}
+
+		defer sshClient.Close()
+
+		newSFTPClient, err = s.SFTP(sshClient)
+
+		if err != nil {
+			return err
+		}
+
+		defer newSFTPClient.Close()
+	}
+
+	dir := filepath.Dir(filePath)
+	err := newSFTPClient.MkdirAll(dir)
+
+	if err != nil {
+		return err
+	}
+
+	remoteFile, err := newSFTPClient.Create(filePath)
+
+	if err != nil {
+		return err
+	}
+
+	defer remoteFile.Close()
+
+	_, err = remoteFile.ReadFrom(fileContents)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -17,6 +17,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	cloudprovider "k8s.io/cloud-provider"
 
+	"github.com/MakeNowJust/heredoc"
 	"github.com/pkg/sftp"
 )
 
@@ -70,6 +71,68 @@ const (
 
 	// fmtLoadBalancerHostname specifies the format for load balancer hostnames.
 	fmtLoadBalancerHostname = "k8s-load-balancer-%s"
+
+	// pathHAProxyOverrideConf specifies the absolute path to the HAProxy overrides.
+	pathHAProxyOverrideConf = "/etc/systemd/system/haproxy.service.d/override.conf"
+
+	// pathSecurityLimitsConf specifies the absolute path to the file limits.
+	pathSecurityLimitsConf = "/etc/security/limits.conf"
+
+	// pathSysctlConf specifies the absolute path to the kernel tweaks.
+	pathSysctlConf = "/etc/sysctl.d/20-maximum-performance.conf"
+)
+
+var (
+	haProxyOverrideConf = heredoc.Doc(`
+		[Service]
+		LimitNOFILE=1048576
+	`)
+	securityLimitsConf = heredoc.Doc(`
+		* soft nproc 1048576
+		* hard nproc 1048576
+		* soft nofile 1048576
+		* hard nofile 1048576
+		* soft stack 1048576
+		* hard stack 1048576
+		* soft memlock unlimited
+		* hard memlock unlimited
+		haproxy soft nproc 1048576
+		haproxy hard nproc 1048576
+		haproxy soft nofile 1048576
+		haproxy hard nofile 1048576
+		haproxy soft stack 1048576
+		haproxy hard stack 1048576
+		haproxy soft memlock unlimited
+		haproxy hard memlock unlimited
+	`)
+	sysctlConf = heredoc.Doc(`
+		fs.file-max=1048576
+		fs.inotify.max_user_instances=1048576
+		fs.inotify.max_user_watches=1048576
+		fs.nr_open=1048576
+		net.core.netdev_max_backlog=1048576
+		net.core.rmem_max=16777216
+		net.core.somaxconn=65535
+		net.core.wmem_max=16777216
+		net.ipv4.tcp_congestion_control=htcp
+		net.ipv4.ip_local_port_range=32768 65535
+		net.ipv4.tcp_fin_timeout=5
+		net.ipv4.tcp_max_orphans=1048576
+		net.ipv4.tcp_max_syn_backlog=20480
+		net.ipv4.tcp_max_tw_buckets=400000
+		net.ipv4.tcp_no_metrics_save=1
+		net.ipv4.tcp_rmem=4096 87380 16777216
+		net.ipv4.tcp_synack_retries=2
+		net.ipv4.tcp_syn_retries=2
+		net.ipv4.tcp_tw_recycle=1
+		net.ipv4.tcp_tw_reuse=1
+		net.ipv4.tcp_wmem=4096 65535 16777216
+		vm.max_map_count=1048576
+		vm.min_free_kbytes=65535
+		vm.overcommit_memory=1
+		vm.swappiness=0
+		vm.vfs_cache_pressure=50
+	`)
 )
 
 // LoadBalancers implements the interface cloudprovider.LoadBalancer.
@@ -90,43 +153,94 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 	connectionLimit, err := parseIntAnnotation(service.Annotations[annoLoadBalancerConnectionLimit], 1000, 1, 20000)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerConnectionLimit, loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' (name: %s)", annoLoadBalancerConnectionLimit, loadBalancerName)
 
 		return server, err
 	}
 
-	debugCloudAction(rtLoadBalancers, "Creating cloud server for load balancer (name: %s)", loadBalancerName)
+	debugCloudAction(rtLoadBalancers, "Creating cloud server (name: %s)", loadBalancerName)
 
 	packageID := getPackageIDByConnectionLimit(connectionLimit)
 	err = server.Create("dk1", packageID, hostname)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to create cloud server for load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to create cloud server (name: %s)", loadBalancerName)
 
 		return server, err
 	}
 
-	debugCloudAction(rtLoadBalancers, "Successfully created cloud server for load balancer (name: %s)", loadBalancerName)
+	debugCloudAction(rtLoadBalancers, "Successfully created cloud server (name: %s)", loadBalancerName)
 
-	// Install an LTS version of HAProxy on the server.
-	debugCloudAction(rtLoadBalancers, "Establishing SSH connection to load balancer (name: %s)", loadBalancerName)
+	// Establish an SSH connection to the server in order to configure it.
+	debugCloudAction(rtLoadBalancers, "Establishing SSH connection (name: %s)", loadBalancerName)
 
 	sshClient, err := server.SSH()
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to establish SSH connection to load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to establish SSH connection (name: %s)", loadBalancerName)
+
+		server.Destroy()
 
 		return server, err
 	}
 
 	defer sshClient.Close()
 
-	debugCloudAction(rtLoadBalancers, "Creating new SSH session for load balancer (name: %s)", loadBalancerName)
+	// Create a new SFTP client in order to upload some configuration files.
+	debugCloudAction(rtLoadBalancers, "Creating new SFTP client (name: %s)", loadBalancerName)
+
+	sftpClient, err := server.SFTP(sshClient)
+
+	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to create new SFTP client (name: %s)", loadBalancerName)
+
+		server.Destroy()
+
+		return server, err
+	}
+
+	defer sftpClient.Close()
+
+	// Upload the configuration files stored as heredoc variables at the top of this file.
+	debugCloudAction(rtLoadBalancers, "Configuring cloud server (name: %s)", loadBalancerName)
+
+	err = server.UploadFile(sftpClient, pathHAProxyOverrideConf, bytes.NewBufferString(haProxyOverrideConf))
+
+	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to configure cloud server because file '%s' could not be created (name: %s)", pathHAProxyOverrideConf, loadBalancerName)
+
+		server.Destroy()
+
+		return server, err
+	}
+
+	err = server.UploadFile(sftpClient, pathSecurityLimitsConf, bytes.NewBufferString(securityLimitsConf))
+
+	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to configure cloud server because file '%s' could not be created (name: %s)", pathSecurityLimitsConf, loadBalancerName)
+
+		server.Destroy()
+
+		return server, err
+	}
+
+	err = server.UploadFile(sftpClient, pathSysctlConf, bytes.NewBufferString(sysctlConf))
+
+	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to configure cloud server because file '%s' could not be created (name: %s)", pathSysctlConf, loadBalancerName)
+
+		server.Destroy()
+
+		return server, err
+	}
+
+	// Configure the server.
+	debugCloudAction(rtLoadBalancers, "Creating new SSH session (name: %s)", loadBalancerName)
 
 	sshSession, err := sshClient.NewSession()
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to create new SSH session for load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to configure cloud server due to SSH session errors (name: %s)", loadBalancerName)
 
 		server.Destroy()
 
@@ -135,27 +249,14 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 
 	defer sshSession.Close()
 
-	debugCloudAction(rtLoadBalancers, "Provisioning cloud server for load balancer (name: %s)", loadBalancerName)
-
 	output, err := sshSession.CombinedOutput(
-		"export DEBIAN_FRONTEND=noninteractive && " +
-			"while ps aux | grep -q [a]pt; do sleep 1; done && " +
-			"while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 1; done && " +
-			"while fuser /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 1; done && " +
-			"apt-get -qq update && " +
-			"apt-get -qq install -y software-properties-common && " +
+		"sysctl --system && " +
 			"add-apt-repository -y ppa:vbernat/haproxy-2.0 && " +
-			"apt-get -qq install -y haproxy=2.0.\\* && " +
-			"mkdir -p /etc/systemd/system/haproxy.service.d && " +
-			"echo '[Service]' > /etc/systemd/system/haproxy.service.d/override.conf && " +
-			"echo 'LimitNOFILE=1048576' >> /etc/systemd/system/haproxy.service.d/override.conf && " +
-			"chmod a+r /etc/systemd/system/haproxy.service.d/override.conf && " +
-			"systemctl daemon-reload && " +
-			"systemctl restart haproxy",
+			"apt-get -qq install -y haproxy=2.0.\\*",
 	)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to provision cloud server for load balancer (name: %s) - Output: %s - Error: %s", loadBalancerName, string(output), err.Error())
+		debugCloudAction(rtLoadBalancers, "Failed to configure cloud server due to shell errors (name: %s) - Output: %s - Error: %s", loadBalancerName, string(output), err.Error())
 
 		server.Destroy()
 
@@ -610,10 +711,14 @@ listen %d
 	_, err = cfgFile.Write(bytes.NewBufferString(configFileContents).Bytes())
 
 	if err != nil {
+		cfgFile.Close()
+
 		debugCloudAction(rtLoadBalancers, "Failed to upload new configuration file to load balancer (name: %s)", loadBalancerName)
 
 		return err
 	}
+
+	cfgFile.Close()
 
 	// Reload the HAProxy service now that the configuration file has been updated.
 	debugCloudAction(rtLoadBalancers, "Creating new SSH session for load balancer (name: %s)", loadBalancerName)
