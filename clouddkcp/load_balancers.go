@@ -158,18 +158,18 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 		return server, err
 	}
 
-	debugCloudAction(rtLoadBalancers, "Creating cloud server (name: %s)", loadBalancerName)
+	debugCloudAction(rtLoadBalancers, "Creating server (name: %s)", loadBalancerName)
 
 	packageID := getPackageIDByConnectionLimit(connectionLimit)
 	err = server.Create("dk1", packageID, hostname)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to create cloud server (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to create server (name: %s)", loadBalancerName)
 
 		return server, err
 	}
 
-	debugCloudAction(rtLoadBalancers, "Successfully created cloud server (name: %s)", loadBalancerName)
+	debugCloudAction(rtLoadBalancers, "Successfully created server (name: %s)", loadBalancerName)
 
 	// Establish an SSH connection to the server in order to configure it.
 	debugCloudAction(rtLoadBalancers, "Establishing SSH connection (name: %s)", loadBalancerName)
@@ -202,32 +202,37 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 	defer sftpClient.Close()
 
 	// Upload the configuration files stored as heredoc variables at the top of this file.
-	debugCloudAction(rtLoadBalancers, "Configuring cloud server (name: %s)", loadBalancerName)
+	debugCloudAction(rtLoadBalancers, "Configuring server (name: %s)", loadBalancerName)
+	debugCloudAction(rtLoadBalancers, "Uploading file to '%s' (name: %s)", pathHAProxyOverrideConf, loadBalancerName)
 
 	err = server.UploadFile(sftpClient, pathHAProxyOverrideConf, bytes.NewBufferString(haProxyOverrideConf))
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to configure cloud server because file '%s' could not be created (name: %s)", pathHAProxyOverrideConf, loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to configure server because file '%s' could not be uploaded (name: %s)", pathHAProxyOverrideConf, loadBalancerName)
 
 		server.Destroy()
 
 		return server, err
 	}
+
+	debugCloudAction(rtLoadBalancers, "Uploading file to '%s' (name: %s)", pathSecurityLimitsConf, loadBalancerName)
 
 	err = server.UploadFile(sftpClient, pathSecurityLimitsConf, bytes.NewBufferString(securityLimitsConf))
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to configure cloud server because file '%s' could not be created (name: %s)", pathSecurityLimitsConf, loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to configure server because file '%s' could not be uploaded (name: %s)", pathSecurityLimitsConf, loadBalancerName)
 
 		server.Destroy()
 
 		return server, err
 	}
 
+	debugCloudAction(rtLoadBalancers, "Uploading file to '%s' (name: %s)", pathSysctlConf, loadBalancerName)
+
 	err = server.UploadFile(sftpClient, pathSysctlConf, bytes.NewBufferString(sysctlConf))
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to configure cloud server because file '%s' could not be created (name: %s)", pathSysctlConf, loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to configure server because file '%s' could not be created (name: %s)", pathSysctlConf, loadBalancerName)
 
 		server.Destroy()
 
@@ -240,7 +245,7 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 	sshSession, err := sshClient.NewSession()
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to configure cloud server due to SSH session errors (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to configure server due to SSH session errors (name: %s)", loadBalancerName)
 
 		server.Destroy()
 
@@ -256,7 +261,7 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 	)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to configure cloud server due to shell errors (name: %s) - Output: %s - Error: %s", loadBalancerName, string(output), err.Error())
+		debugCloudAction(rtLoadBalancers, "Failed to configure server due to shell errors (name: %s) - Output: %s - Error: %s", loadBalancerName, string(output), err.Error())
 
 		server.Destroy()
 
@@ -491,7 +496,7 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	_, err := server.InitializeByHostname(hostname)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to initialize cloud server instance for load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to initialize server instance for load balancer (name: %s)", loadBalancerName)
 
 		return err
 	}
@@ -771,7 +776,7 @@ func (l LoadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterNam
 	err = server.Destroy()
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to destroy cloud server for load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to destroy server (name: %s)", loadBalancerName)
 
 		return err
 	}
