@@ -138,6 +138,8 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	s.Information.Booted = true
 
 	// Configure the package manager for unattended upgrades.
+	debugCloudAction(rtServers, "Creating new SFTP client (hostname: %s)", hostname)
+
 	sftpClient, err := s.SFTP(sshClient)
 
 	if err != nil {
@@ -150,6 +152,8 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 
 	defer sftpClient.Close()
 
+	debugCloudAction(rtServers, "Uploading file to '%s' (hostname: %s)", pathAPTAutoConf, hostname)
+
 	err = s.UploadFile(sftpClient, pathAPTAutoConf, bytes.NewBufferString(aptAutoConf))
 
 	if err != nil {
@@ -161,6 +165,8 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	}
 
 	// Configure the server by installing the required software and authorizing the SSH key.
+	debugCloudAction(rtServers, "Creating new SSH session (hostname: %s)", hostname)
+
 	sshSession, err := sshClient.NewSession()
 
 	if err != nil {
@@ -172,6 +178,8 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	}
 
 	defer sshSession.Close()
+
+	debugCloudAction(rtServers, "Upgrading and configuring the operating system (hostname: %s)", hostname)
 
 	_, err = sshSession.CombinedOutput(
 		"swapoff -a && " +
@@ -191,7 +199,7 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	)
 
 	if err != nil {
-		debugCloudAction(rtServers, "Failed to create cloud server due to bootstrap errors (hostname: %s)", hostname)
+		debugCloudAction(rtServers, "Failed to create cloud server due to shell errors (hostname: %s)", hostname)
 
 		s.Destroy()
 
