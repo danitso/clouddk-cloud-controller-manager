@@ -189,7 +189,6 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 			"sed -i '/ swap / s/^/#/' /etc/fstab && " +
 			"sed -i 's/us.archive.ubuntu.com/mirrors.dotsrc.org/' /etc/apt/sources.list && " +
 			"export DEBIAN_FRONTEND=noninteractive && " +
-			"while ps aux | grep -q [a]pt; do sleep 1; done && " +
 			"while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 1; done && " +
 			"while fuser /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 1; done && " +
 			"apt-get -qq update && " +
