@@ -431,7 +431,7 @@ func (l LoadBalancers) GetLoadBalancer(ctx context.Context, clusterName string, 
 
 	for _, nic := range server.Information.NetworkInterfaces {
 		for _, ip := range nic.IPAddresses {
-			debugCloudAction(rtLoadBalancers, "Adding IP address '%s' to load balancer ingress (name: %s)", ip.Address, loadBalancerName)
+			debugCloudAction(rtLoadBalancers, "Adding IP address '%s' to ingress (name: %s)", ip.Address, loadBalancerName)
 
 			ingresses = append(ingresses, v1.LoadBalancerIngress{
 				IP: ip.Address,
@@ -440,7 +440,7 @@ func (l LoadBalancers) GetLoadBalancer(ctx context.Context, clusterName string, 
 	}
 
 	if len(ingresses) == 0 {
-		return &v1.LoadBalancerStatus{}, true, fmt.Errorf("No IP addresses available for load balancer (name: %s)", loadBalancerName)
+		return &v1.LoadBalancerStatus{}, true, fmt.Errorf("No IP addresses available (name: %s)", loadBalancerName)
 	}
 
 	return &v1.LoadBalancerStatus{Ingress: ingresses}, true, nil
@@ -489,7 +489,7 @@ func (l LoadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName strin
 
 	for _, nic := range server.Information.NetworkInterfaces {
 		for _, ip := range nic.IPAddresses {
-			debugCloudAction(rtLoadBalancers, "Adding IP '%s' to load balancer ingress (name: %s)", ip.Address, loadBalancerName)
+			debugCloudAction(rtLoadBalancers, "Adding IP address '%s' to ingress (name: %s)", ip.Address, loadBalancerName)
 
 			ingresses = append(ingresses, v1.LoadBalancerIngress{
 				IP: ip.Address,
@@ -498,7 +498,7 @@ func (l LoadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName strin
 	}
 
 	if len(ingresses) == 0 {
-		return &v1.LoadBalancerStatus{}, fmt.Errorf("No IP addresses available for load balancer (name: %s)", loadBalancerName)
+		return &v1.LoadBalancerStatus{}, fmt.Errorf("No IP addresses available (name: %s)", loadBalancerName)
 	}
 
 	return &v1.LoadBalancerStatus{Ingress: ingresses}, nil
@@ -520,13 +520,13 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	_, err := server.InitializeByHostname(hostname)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to initialize server instance for load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to initialize server instance (name: %s)", loadBalancerName)
 
 		return err
 	}
 
 	if len(server.Information.NetworkInterfaces) == 0 {
-		debugCloudAction(rtLoadBalancers, "Failed to find any network interfaces for load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to find any network interfaces (name: %s)", loadBalancerName)
 
 		return fmt.Errorf("Cannot update load balancer due to lack of IP addresses (name: %s)", loadBalancerName)
 	}
@@ -539,7 +539,7 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerAlgorithm)
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' (name: %s)", annoLoadBalancerAlgorithm)
 
 		return err
 	}
@@ -547,7 +547,7 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	clientTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerClientTimeout], 30, 1, 86400)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerClientTimeout)
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' (name: %s)", annoLoadBalancerClientTimeout)
 
 		return err
 	}
@@ -555,7 +555,7 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	connectionLimit, err := parseIntAnnotation(service.Annotations[annoLoadBalancerConnectionLimit], 1000, 1, 20000)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerConnectionLimit)
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' (name: %s)", annoLoadBalancerConnectionLimit)
 
 		return err
 	}
@@ -564,7 +564,7 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	healthCheckInterval, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckInterval], 3, 3, 300)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerHealthCheckInterval)
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' (name: %s)", annoLoadBalancerHealthCheckInterval)
 
 		return err
 	}
@@ -572,7 +572,7 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	healthCheckThresholdHealthy, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckThresholdHealthy], 5, 2, 10)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerHealthCheckThresholdHealthy)
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' (name: %s)", annoLoadBalancerHealthCheckThresholdHealthy)
 
 		return err
 	}
@@ -580,7 +580,7 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	healthCheckThresholdUnhealthy, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckThresholdUnhealthy], 3, 2, 10)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", healthCheckThresholdUnhealthy)
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' (name: %s)", healthCheckThresholdUnhealthy)
 
 		return err
 	}
@@ -588,7 +588,7 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	healthCheckTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerHealthCheckTimeout], 5, 3, 300)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", healthCheckTimeout)
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' (name: %s)", healthCheckTimeout)
 
 		return err
 	}
@@ -596,13 +596,13 @@ func (l LoadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName strin
 	serverTimeout, err := parseIntAnnotation(service.Annotations[annoLoadBalancerServerTimeout], 60, 1, 86400)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' for load balancer (name: %s)", annoLoadBalancerServerTimeout)
+		debugCloudAction(rtLoadBalancers, "Failed to parse annotation '%s' (name: %s)", annoLoadBalancerServerTimeout)
 
 		return err
 	}
 
 	// Generate a new HAProxy configuration file.
-	debugCloudAction(rtLoadBalancers, "Generating new configuration file for load balancer (name: %s)", loadBalancerName)
+	debugCloudAction(rtLoadBalancers, "Generating new configuration file (name: %s)", loadBalancerName)
 
 	processorCount := getProcessorCountByConnectionLimit(connectionLimit)
 	configFileContents := strings.TrimSpace(fmt.Sprintf(
@@ -703,36 +703,36 @@ listen %d
 	}
 
 	// Upload the new configuration file to the server using SFTP.
-	debugCloudAction(rtLoadBalancers, "Establishing SSH connection to load balancer (name: %s)", loadBalancerName)
+	debugCloudAction(rtLoadBalancers, "Establishing SSH connection (name: %s)", loadBalancerName)
 
 	sshClient, err := server.SSH()
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to establish SSH connection to load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to establish SSH connection (name: %s)", loadBalancerName)
 
 		return err
 	}
 
 	defer sshClient.Close()
 
-	debugCloudAction(rtLoadBalancers, "Creating new SFTP client for load balancer (name: %s)", loadBalancerName)
+	debugCloudAction(rtLoadBalancers, "Creating new SFTP client (name: %s)", loadBalancerName)
 
 	sftp, err := sftp.NewClient(sshClient)
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to create new SFTP client for load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to create new SFTP client (name: %s)", loadBalancerName)
 
 		return err
 	}
 
 	defer sftp.Close()
 
-	debugCloudAction(rtLoadBalancers, "Uploading new configuration file to load balancer (name: %s)", loadBalancerName)
+	debugCloudAction(rtLoadBalancers, "Uploading new configuration file (name: %s)", loadBalancerName)
 
 	cfgFile, err := sftp.Create("/etc/haproxy/haproxy.cfg")
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to upload new configuration file to load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to upload the new configuration file (name: %s)", loadBalancerName)
 
 		return err
 	}
@@ -742,7 +742,7 @@ listen %d
 	if err != nil {
 		cfgFile.Close()
 
-		debugCloudAction(rtLoadBalancers, "Failed to upload new configuration file to load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to upload the new configuration file (name: %s)", loadBalancerName)
 
 		return err
 	}
@@ -750,12 +750,12 @@ listen %d
 	cfgFile.Close()
 
 	// Reload the HAProxy service now that the configuration file has been updated.
-	debugCloudAction(rtLoadBalancers, "Creating new SSH session for load balancer (name: %s)", loadBalancerName)
+	debugCloudAction(rtLoadBalancers, "Creating new SSH session (name: %s)", loadBalancerName)
 
 	sshSession, err := sshClient.NewSession()
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to create new SSH session for load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to create new SSH session (name: %s)", loadBalancerName)
 
 		return err
 	}
@@ -765,7 +765,7 @@ listen %d
 	_, err = sshSession.CombinedOutput("systemctl reload haproxy")
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to load the new configuration file for load balancer (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to load the new configuration file (name: %s)", loadBalancerName)
 	}
 
 	return err
@@ -800,7 +800,7 @@ func (l LoadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterNam
 	err = server.Destroy()
 
 	if err != nil {
-		debugCloudAction(rtLoadBalancers, "Failed to destroy server (name: %s)", loadBalancerName)
+		debugCloudAction(rtLoadBalancers, "Failed to destroy load balancer (name: %s)", loadBalancerName)
 
 		return err
 	}
