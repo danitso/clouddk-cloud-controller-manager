@@ -72,20 +72,36 @@ const (
 	// fmtLoadBalancerHostname specifies the format for load balancer hostnames.
 	fmtLoadBalancerHostname = "k8s-load-balancer-%s"
 
-	// pathHAProxyOverrideConf specifies the absolute path to the HAProxy overrides.
-	pathHAProxyOverrideConf = "/etc/systemd/system/haproxy.service.d/override.conf"
-
-	// pathSecurityLimitsConf specifies the absolute path to the file limits.
-	pathSecurityLimitsConf = "/etc/security/limits.conf"
-
-	// pathSysctlConf specifies the absolute path to the kernel tweaks.
-	pathSysctlConf = "/etc/sysctl.d/20-maximum-performance.conf"
+	pathHAProxyOverrideConf         = "/etc/systemd/system/haproxy.service.d/override.conf"
+	pathLoadBalancerProvisionScript = "/tmp/clouddk_load_balancer_provisioner.sh"
+	pathSecurityLimitsConf          = "/etc/security/limits.conf"
+	pathSysctlConf                  = "/etc/sysctl.d/20-maximum-performance.conf"
 )
 
 var (
 	haProxyOverrideConf = heredoc.Doc(`
 		[Service]
 		LimitNOFILE=1048576
+	`)
+	loadBalancerProvisionScript = heredoc.Doc(`
+		#!/bin/bash
+		set -e
+
+		# Specify the required environment variables.
+		export DEBIAN_FRONTEND=noninteractive
+
+		# Load the optimized kernel configuration.
+		sysctl --system
+
+		# Wait for APT processes to terminate before proceeding.
+		while ps aux | grep -q [a]pt || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || /var/lib/dpkg/lock >/dev/null 2>&1; do
+			sleep 2
+		done
+
+		# Install an LTS version of HAProxy.
+		add-apt-repository -y ppa:vbernat/haproxy-2.0
+		apt-get -qq update
+		apt-get -qq install -y haproxy=2.0.\*
 	`)
 	securityLimitsConf = heredoc.Doc(`
 		* soft nproc 1048576
@@ -215,6 +231,18 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 		return server, err
 	}
 
+	debugCloudAction(rtLoadBalancers, "Uploading file to '%s' (name: %s)", pathLoadBalancerProvisionScript, loadBalancerName)
+
+	err = server.UploadFile(sftpClient, pathLoadBalancerProvisionScript, bytes.NewBufferString(loadBalancerProvisionScript))
+
+	if err != nil {
+		debugCloudAction(rtLoadBalancers, "Failed to configure server because file '%s' could not be uploaded (name: %s)", pathLoadBalancerProvisionScript, loadBalancerName)
+
+		server.Destroy()
+
+		return server, err
+	}
+
 	debugCloudAction(rtLoadBalancers, "Uploading file to '%s' (name: %s)", pathSecurityLimitsConf, loadBalancerName)
 
 	err = server.UploadFile(sftpClient, pathSecurityLimitsConf, bytes.NewBufferString(securityLimitsConf))
@@ -254,11 +282,7 @@ func createLoadBalancer(c *CloudConfiguration, hostname string, service *v1.Serv
 
 	defer sshSession.Close()
 
-	output, err := sshSession.CombinedOutput(
-		"sysctl --system && " +
-			"add-apt-repository -y ppa:vbernat/haproxy-2.0 && " +
-			"apt-get -qq install -y haproxy=2.0.\\*",
-	)
+	output, err := sshSession.CombinedOutput("/bin/bash " + pathLoadBalancerProvisionScript)
 
 	if err != nil {
 		debugCloudAction(rtLoadBalancers, "Failed to configure server due to shell errors (name: %s) - Output: %s - Error: %s", loadBalancerName, string(output), err.Error())

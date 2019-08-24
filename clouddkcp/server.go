@@ -22,7 +22,9 @@ import (
 )
 
 const (
-	pathAPTAutoConf = "/etc/apt/apt.conf.d/00auto-conf"
+	pathAPTAutoConf           = "/etc/apt/apt.conf.d/00auto-conf"
+	pathPublicKeyController   = "/root/.ssh/id_rsa_controller.pub"
+	pathServerProvisionScript = "/tmp/clouddk_server_provisioner.sh"
 )
 
 var (
@@ -31,6 +33,40 @@ var (
 			"--force-confdef";
 			"--force-confold";
 		}
+	`)
+	serverProvisionScript = heredoc.Doc(`
+		#!/bin/bash
+		set -e
+
+		# Specify the required environment variables.
+		export DEBIAN_FRONTEND=noninteractive
+
+		# Authorize the SSH key and disable password authentication.
+		if [[ ! -f /root/.ssh/authorized_keys ]]; then
+			touch /root/.ssh/authorized_keys
+		fi
+
+		cat /root/.ssh/id_rsa_controller.pub >> /root/.ssh/authorized_keys
+		sed -i 's/#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+		systemctl restart ssh
+
+		# Turn off swap to improve performance.
+		swapoff -a
+		sed -i '/ swap / s/^/#/' /etc/fstab
+
+		# Configure APT to use a mirror located in Denmark instead of the default US mirror.
+		sed -i 's/us.archive.ubuntu.com/mirrors.dotsrc.org/' /etc/apt/sources.list
+
+		# Wait for APT processes to terminate before proceeding.
+		while ps aux | grep -q [a]pt || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || /var/lib/dpkg/lock >/dev/null 2>&1; do
+			sleep 2
+		done
+
+		# Upgrade the OS and install some additional packages.
+		apt-get -qq update
+		apt-get -qq upgrade -y
+		apt-get -qq dist-upgrade -y
+		apt-get -qq install -y apt-transport-https ca-certificates software-properties-common
 	`)
 )
 
@@ -154,10 +190,34 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 
 	debugCloudAction(rtServers, "Uploading file to '%s' (hostname: %s)", pathAPTAutoConf, hostname)
 
-	err = s.UploadFile(sftpClient, pathAPTAutoConf, bytes.NewBufferString(aptAutoConf))
+	err = s.UploadFile(sftpClient, pathAPTAutoConf, bytes.NewBufferString(strings.ReplaceAll(aptAutoConf, "\r", "")))
 
 	if err != nil {
 		debugCloudAction(rtServers, "Failed to create server because file '%s' could not be uploaded (hostname: %s)", pathAPTAutoConf, hostname)
+
+		s.Destroy()
+
+		return err
+	}
+
+	debugCloudAction(rtServers, "Uploading file to '%s' (hostname: %s)", pathPublicKeyController, hostname)
+
+	err = s.UploadFile(sftpClient, pathPublicKeyController, bytes.NewBufferString(strings.ReplaceAll(s.CloudConfiguration.PublicKey, "\r", "")))
+
+	if err != nil {
+		debugCloudAction(rtServers, "Failed to create server because file '%s' could not be uploaded (hostname: %s)", pathPublicKeyController, hostname)
+
+		s.Destroy()
+
+		return err
+	}
+
+	debugCloudAction(rtServers, "Uploading file to '%s' (hostname: %s)", pathServerProvisionScript, hostname)
+
+	err = s.UploadFile(sftpClient, pathServerProvisionScript, bytes.NewBufferString(strings.ReplaceAll(serverProvisionScript, "\r", "")))
+
+	if err != nil {
+		debugCloudAction(rtServers, "Failed to create server because file '%s' could not be uploaded (hostname: %s)", pathServerProvisionScript, hostname)
 
 		s.Destroy()
 
@@ -181,21 +241,7 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 
 	debugCloudAction(rtServers, "Upgrading and configuring the operating system (hostname: %s)", hostname)
 
-	output, err := sshSession.CombinedOutput(
-		fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys && ", strings.TrimSpace(s.CloudConfiguration.PublicKey)) +
-			"sed -i 's/#\\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && " +
-			"systemctl restart ssh && " +
-			"swapoff -a && " +
-			"sed -i '/ swap / s/^/#/' /etc/fstab && " +
-			"sed -i 's/us.archive.ubuntu.com/mirrors.dotsrc.org/' /etc/apt/sources.list && " +
-			"export DEBIAN_FRONTEND=noninteractive && " +
-			"while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 1; done && " +
-			"while fuser /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 1; done && " +
-			"apt-get -qq update && " +
-			"apt-get -qq upgrade -y && " +
-			"apt-get -qq dist-upgrade -y && " +
-			"apt-get -qq install -y apt-transport-https ca-certificates software-properties-common",
-	)
+	output, err := sshSession.CombinedOutput("/bin/bash " + pathServerProvisionScript)
 
 	if err != nil {
 		debugCloudAction(rtServers, "Failed to create server due to shell errors (hostname: %s) - Output: %s - Error: %s", hostname, string(output), err.Error())
