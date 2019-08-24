@@ -181,7 +181,7 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 
 	debugCloudAction(rtServers, "Upgrading and configuring the operating system (hostname: %s)", hostname)
 
-	_, err = sshSession.CombinedOutput(
+	output, err := sshSession.CombinedOutput(
 		fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys && ", strings.TrimSpace(s.CloudConfiguration.PublicKey)) +
 			"sed -i 's/#\\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && " +
 			"systemctl restart ssh && " +
@@ -198,7 +198,7 @@ func (s *CloudServer) Create(locationID string, packageID string, hostname strin
 	)
 
 	if err != nil {
-		debugCloudAction(rtServers, "Failed to create server due to shell errors (hostname: %s)", hostname)
+		debugCloudAction(rtServers, "Failed to create server due to shell errors (hostname: %s) - Output: %s - Error: %s", hostname, string(output), err.Error())
 
 		s.Destroy()
 
