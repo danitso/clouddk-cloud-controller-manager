@@ -58,7 +58,7 @@ var (
 		sed -i 's/us.archive.ubuntu.com/mirrors.dotsrc.org/' /etc/apt/sources.list
 
 		# Wait for APT processes to terminate before proceeding.
-		while ps aux | grep -q [a]pt || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || /var/lib/dpkg/lock >/dev/null 2>&1; do
+		while ps aux | grep -q [a]pt || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock >/dev/null 2>&1; do
 			sleep 2
 		done
 
