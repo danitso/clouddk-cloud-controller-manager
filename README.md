@@ -1,3 +1,5 @@
+[![Build Status](https://api.travis-ci.com/danitso/clouddk-cloud-controller-manager.svg?branch=master)](https://travis-ci.com/danitso/clouddk-cloud-controller-manager)
+
 # Kubernetes Cloud Controller Manager for Cloud.dk
 
 `clouddk-cloud-controller-manager` is a Kubernetes Cloud Controller Manager implementation (or out-of-tree cloud-provider) for [Cloud.dk](https://cloud.dk).
